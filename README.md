@@ -181,10 +181,6 @@ The app uses the Provider pattern for state management:
 - **Background Processing**: Works even when app is closed
 - **Custom Actions**: Quick categorization from notifications
 
-## 📱 Screenshots
-
-*Add screenshots of the app here*
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -193,29 +189,6 @@ The app uses the Provider pattern for state management:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## ⚠️ Disclaimer
 
 This app is for personal use only. The developers are not responsible for any financial decisions made based on the data shown in this app. Always verify your financial information with your bank.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-1. Check the [Issues](https://github.com/your-repo/issues) page
-2. Create a new issue with detailed information
-3. Include device information and error logs
-
-## 🔄 Updates
-
-Stay updated with the latest features and improvements:
-- **Automatic Updates**: App updates through your device's app store
-- **Feature Requests**: Suggest new features through GitHub issues
-- **Bug Reports**: Help improve the app by reporting bugs
-
----
-
-**Made with ❤️ for better financial management**
-"# Budget-Tracker" 
