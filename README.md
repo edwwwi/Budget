@@ -1,4 +1,4 @@
-# Finance Tracker App
+# Budget Finance Tracker App using SMS
 
 A comprehensive Flutter application for automatic transaction tracking via SMS with budget management and analytics.
 
@@ -180,14 +180,6 @@ The app uses the Provider pattern for state management:
 - **Local Notifications**: Transaction alerts and category selection
 - **Background Processing**: Works even when app is closed
 - **Custom Actions**: Quick categorization from notifications
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## ⚠️ Disclaimer
 
