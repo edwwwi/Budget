@@ -1,267 +1,181 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
-import '../models/transaction.dart';
-import '../models/category.dart';
+import '../models/transaction_model.dart';
+import '../models/transaction_category.dart';
+import '../models/transaction_type.dart';
+import '../core/database/database_helper.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications = 
+  static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
-  
-  static final StreamController<Map<String, dynamic>> _notificationActionController = 
+
+  static final StreamController<Map<String, dynamic>>
+  _notificationActionController =
       StreamController<Map<String, dynamic>>.broadcast();
 
-  // Set to track transaction IDs that have already been notified
-  static final HashSet<String> _notifiedTransactions = HashSet<String>();
-  
-  // Maximum number of transaction IDs to keep in memory
-  static const int _maxStoredTransactions = 100;
-
-  static Stream<Map<String, dynamic>> get notificationActionStream => 
+  static Stream<Map<String, dynamic>> get notificationActionStream =>
       _notificationActionController.stream;
 
   static Future<void> initialize() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     const InitializationSettings initializationSettings =
         InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
     await _notifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveBackgroundNotificationResponse:
+          _onBackgroundNotificationTapped,
     );
-    
-    // Create notification channels for Android
+
     await _createNotificationChannels();
-    
-    // Request notification permissions
-    await requestNotificationPermissions();
   }
 
   static Future<void> _createNotificationChannels() async {
-    // Transaction notification channel
-    const AndroidNotificationChannel transactionChannel = AndroidNotificationChannel(
-      'transaction_channel',
-      'Transaction Notifications',
-      description: 'Notifications for new bank transactions',
-      importance: Importance.high,
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'budify_transactions',
+      'Budify Transactions',
+      description: 'Transaction alerts and categorization',
+      importance: Importance.max,
       enableVibration: true,
       enableLights: true,
-    );
-
-    // Category selection channel
-    const AndroidNotificationChannel categoryChannel = AndroidNotificationChannel(
-      'category_channel',
-      'Category Selection',
-      description: 'Quick category selection for transactions',
-      importance: Importance.defaultImportance,
-      enableVibration: false,
-      enableLights: false,
+      playSound: true,
     );
 
     await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(transactionChannel);
-        
-    await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(categoryChannel);
-  }
-
-  static Future<void> requestNotificationPermissions() async {
-    // Request notification permissions for Android 13+
-    await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(channel);
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
-    print('Notification tapped: ${response.id}, action: ${response.actionId}, payload: ${response.payload}');
-    
-    // Handle category selection from notification actions
     if (response.actionId != null && response.payload != null) {
-      // The actionId is the category ID
-      String categoryId = response.actionId!;
-      
-      // Parse the payload to get transaction ID
-      List<String> parts = response.payload!.split('|');
-      if (parts.length >= 2) {
-        String transactionId = parts[1]; // The transaction ID is the second part
-        
-        print('Category selected: $categoryId for transaction: $transactionId');
-        
-        // Send to stream for processing
-        _notificationActionController.add({
-          'transactionId': transactionId,
-          'categoryId': categoryId,
-          'action': 'categorize',
-        });
-      }
-    }
-    // Handle regular notification tap
-    else if (response.payload != null) {
-      List<String> parts = response.payload!.split('|');
-      if (parts.length >= 2) {
-        String type = parts[0]; // 'transaction'
-        String transactionId = parts[1];
-        
-        // Send to stream for processing
-        _notificationActionController.add({
-          'transactionId': transactionId,
-          'action': 'view',
-        });
-      }
+      _handleAction(response.actionId!, response.payload!);
     }
   }
 
-  static Future<void> showTransactionNotification(Transaction transaction) async {
-    // Check if we've already shown a notification for this transaction
-    if (_notifiedTransactions.contains(transaction.id)) {
-      print('Skipping duplicate notification for transaction ${transaction.id}');
-      return;
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationTapped(NotificationResponse response) {
+    if (response.actionId != null && response.payload != null) {
+      _handleAction(response.actionId!, response.payload!);
     }
-    
-    // Add to notified transactions set
-    _notifiedTransactions.add(transaction.id);
-    
-    // Limit the size of the set to prevent memory issues
-    if (_notifiedTransactions.length > _maxStoredTransactions) {
-      // Remove the oldest transaction ID (approximation since HashSet doesn't maintain order)
-      _notifiedTransactions.remove(_notifiedTransactions.first);
+  }
+
+  static Future<void> _handleAction(String actionId, String payload) async {
+    // payload: amount|merchant|type|timestamp
+    final parts = payload.split('|');
+    if (parts.length < 4) return;
+
+    final amount = double.parse(parts[0]);
+    final merchant = parts[1];
+    final type = TransactionType.values[int.parse(parts[2])];
+    final timestamp = DateTime.parse(parts[3]);
+
+    TransactionCategory? category;
+    if (actionId == 'food')
+      category = TransactionCategory.food;
+    else if (actionId == 'petrol')
+      category = TransactionCategory.petrol;
+    else if (actionId == 'entertainment')
+      category = TransactionCategory.entertainment;
+    else if (actionId == 'other')
+      category = TransactionCategory.other;
+
+    if (category != null) {
+      final transaction = TransactionModel(
+        amount: amount,
+        category: category,
+        merchant: merchant,
+        type: type,
+        timestamp: timestamp,
+      );
+
+      await DatabaseHelper().insertTransaction(transaction);
+
+      // Notify listeners if app is in foreground
+      _notificationActionController.add({
+        'action': 'transaction_added',
+        'transaction': transaction,
+      });
+
+      // Dismiss notification (automatically happens for actions usually, but to be sure)
+      await _notifications.cancel(transaction.hashCode);
     }
-    
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'transaction_channel',
-      'Transaction Notifications',
-      channelDescription: 'Notifications for new bank transactions',
-      importance: Importance.high,
+  }
+
+  static Future<void> showSmartNotification(
+    TransactionModel transaction,
+  ) async {
+    final List<AndroidNotificationAction> actions = [
+      const AndroidNotificationAction(
+        'food',
+        'Food',
+        showsUserInterface: false,
+      ),
+      const AndroidNotificationAction(
+        'petrol',
+        'Petrol',
+        showsUserInterface: false,
+      ),
+      const AndroidNotificationAction(
+        'entertainment',
+        'Entertainment',
+        showsUserInterface: false,
+      ),
+      const AndroidNotificationAction(
+        'other',
+        'Other',
+        showsUserInterface: false,
+      ),
+    ];
+
+    final String payload =
+        '${transaction.amount}|${transaction.merchant}|${transaction.type.index}|${transaction.timestamp.toIso8601String()}';
+
+    final AndroidNotificationDetails
+    androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'budify_transactions',
+      'Budify Transactions',
+      channelDescription: 'Transaction alerts and categorization',
+      importance: Importance.max,
       priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      enableLights: true,
-      color: Colors.green,
-      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: BigTextStyleInformation(''),
+      ticker: 'Budify SMS detected',
+      styleInformation: BigTextStyleInformation(
+        '${transaction.type == TransactionType.debit ? "Sent" : "Received"} <b>Rs ${transaction.amount.toStringAsFixed(2)}</b> to ${transaction.merchant}',
+        htmlFormatBigText: true,
+        contentTitle: 'New Transaction',
+        htmlFormatContentTitle: true,
+        summaryText: 'Categorization Required',
+        htmlFormatSummaryText: true,
+      ),
+      actions: actions,
     );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
 
-    // Show main notification
     await _notifications.show(
       transaction.hashCode,
-      'New Transaction Detected',
-      '₹${transaction.amount.toStringAsFixed(2)} ${transaction.type == TransactionType.credit ? 'credited' : 'debited'}',
+      'New Transaction',
+      'Rs ${transaction.amount.toStringAsFixed(2)} to ${transaction.merchant}',
       platformChannelSpecifics,
-      payload: 'transaction|${transaction.id}',
+      payload: payload,
     );
-
-    // Show category selection notification
-    await _showCategorySelectionNotification(transaction);
-  }
-
-  static Future<void> _showCategorySelectionNotification(Transaction transaction) async {
-    // Create action buttons for quick categorization
-    List<AndroidNotificationAction> actions = [];
-    
-    // Get quick categories (first 5 default categories)
-    List<Category> quickCategories = Category.defaultCategories.take(5).toList();
-    
-    // Add action for each category
-    for (var category in quickCategories) {
-      actions.add(AndroidNotificationAction(
-        category.id,
-        category.name,
-        icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-        contextual: true,
-      ));
-    }
-    
-    // Add an 'Other' action
-    actions.add(AndroidNotificationAction(
-      'other',
-      'Other',
-      icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      contextual: true,
-    ));
-    
-    final AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'category_channel',
-      'Category Selection',
-      channelDescription: 'Quick category selection for transactions',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      showWhen: false,
-      enableVibration: false,
-      enableLights: false,
-      color: Colors.blue,
-      actions: actions,
-      styleInformation: BigTextStyleInformation(''),
-    );
-
-    final NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-        
-    // Show notification with category selection
-    await _notifications.show(
-      transaction.hashCode + 1, // Different ID from the main notification
-      'Categorize Transaction',
-      'Select a category for ₹${transaction.amount.toStringAsFixed(2)} ${transaction.type == TransactionType.credit ? 'credit' : 'debit'}',
-      platformChannelSpecifics,
-      payload: 'transaction|${transaction.id}',
-    );
-  }
-
-  static Future<void> showBudgetAlert(double spent, double budget) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'budget_channel',
-      'Budget Alerts',
-      channelDescription: 'Notifications for budget limits',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      enableLights: true,
-      color: Colors.orange,
-    );
-
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    double percentage = (spent / budget) * 100;
-    String message = percentage >= 100 
-        ? 'You have exceeded your monthly budget!'
-        : 'You have used ${percentage.toStringAsFixed(1)}% of your monthly budget';
-
-    await _notifications.show(
-      9999, // Fixed ID for budget alerts
-      'Budget Alert',
-      message,
-      platformChannelSpecifics,
-    );
-  }
-
-  static Future<void> cancelAllNotifications() async {
-    await _notifications.cancelAll();
-  }
-
-  static Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
   }
 
   static void dispose() {
