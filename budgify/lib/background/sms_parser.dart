@@ -5,14 +5,22 @@ import 'dart:convert';
 class SmsParser {
   // Regex for Federal Bank
   // Example: Your Ac XXXXXX1234 is debited with INR 500.00 on 12-Feb-25. Info: UPI/12345/MerchantName. Bal: INR 10000.00
+  // Example 2: Rs 35.00 sent via UPI... to ATHUL T A.Ref:...
+  // Example 3: ...credited to your A/c... BAL-Rs.649...
+
   static final RegExp _amountRegex = RegExp(
       r'(?:INR|Rs\.?)\s*(\d+(?:,\d+)*(?:\.\d{2})?)',
       caseSensitive: false);
+
   static final RegExp _accountRegex =
-      RegExp(r'Ac\s+[X\d]*(\d{4})', caseSensitive: false);
-  static final RegExp _merchantRegex = RegExp(r'Info:\s*(.*?)(?:\.|Bal|$)');
+      RegExp(r'(?:Ac|A/c)\s+[X\d]*(\d{4})', caseSensitive: false);
+
+  static final RegExp _merchantRegex = RegExp(
+      r'(?:Info:|\bto\b)\s*(.*?)(?:\.|Ref:|Bal|$)',
+      caseSensitive: false);
+
   static final RegExp _balanceRegex = RegExp(
-      r'Bal:?\s*(?:INR|Rs\.?)\s*(\d+(?:,\d+)*(?:\.\d{2})?)',
+      r'(?:Bal|Balance)[:\-]?\s*(?:INR|Rs\.?)\s*(\d+(?:,\d+)*(?:\.\d{2})?)',
       caseSensitive: false);
 
   static TransactionModel? parse(String? body, int? timestamp) {
@@ -20,12 +28,15 @@ class SmsParser {
 
     // Detect Transaction Type
     String type = 'DEBIT';
-    if (body.toLowerCase().contains('credited')) {
+    final lowerBody = body.toLowerCase();
+    if (lowerBody.contains('credited')) {
       type = 'CREDIT';
-    } else if (!body.toLowerCase().contains('debited')) {
-      // If neither credited nor debited, might be an alert, ignore for now or log
-      // But typical transactional SMS contains these words.
-      // Strict filter: return null if not transactional
+    } else if (lowerBody.contains('debited') ||
+        lowerBody.contains('sent') ||
+        lowerBody.contains('spent')) {
+      type = 'DEBIT';
+    } else {
+      // Return null if not a recognized transaction type
       return null;
     }
 
@@ -41,15 +52,17 @@ class SmsParser {
     // Extract Merchant/Info
     final merchantMatch = _merchantRegex.firstMatch(body);
     String merchant = merchantMatch?.group(1)?.trim() ?? 'Unknown';
+
     // Cleanup Merchant string
     if (merchant.startsWith('UPI/')) {
       // Typical UPI: UPI/ID/MERCHANT -> extract merchant
       List<String> parts = merchant.split('/');
       if (parts.length > 2) {
-        merchant = parts.last; // Try to get the last part or the 3rd part
+        merchant = parts.last;
       }
-    } else if (merchant.startsWith('NEFT') || merchant.startsWith('IMPS')) {
-      // Keep as is or refine
+    } else if (merchant.toLowerCase().contains('your a/c')) {
+      // "credited to your A/c" -> "your A/c" captured by 'to'
+      merchant = 'Unknown';
     }
 
     // Extract Balance
@@ -59,7 +72,6 @@ class SmsParser {
         : null;
 
     // Generate Hash for deduplication
-    // Concatenate important fields and hash
     String raw =
         '${amount}_${type}_${accountNumber}_${timestamp ?? DateTime.now().millisecondsSinceEpoch}';
     var bytes = utf8.encode(raw);
@@ -68,8 +80,7 @@ class SmsParser {
     return TransactionModel(
       amount: amount,
       merchant: merchant,
-      timestamp:
-          DateTime.now(), // Use current time of receipt, or parse date from SMS
+      timestamp: DateTime.now(),
       type: type,
       smsBody: body,
       accountNumber: accountNumber,

@@ -12,6 +12,15 @@ void backgroundMessageHandler(SmsMessage message) async {
 }
 
 Future<void> _processSms(SmsMessage message) async {
+  // Initialize notification service in background isolate
+  // This is required to show notifications
+  try {
+    // We only need basic init for showing notifications, but existing init is fine
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint("Failed to init notifications in background: $e");
+  }
+
   // Check if sender is Federal Bank-like (often alphanumeric like VM-FEDBNK, AD-FEDBNK)
   // For now, parse all to see if it matches structure
   // Or filter by "FEDBNK"
@@ -19,8 +28,11 @@ Future<void> _processSms(SmsMessage message) async {
       (message.body ?? '').toLowerCase().contains('fedbnk');
 
   if (!likelyBank) {
-    if ((message.body ?? '').toLowerCase().contains('debited') ||
-        (message.body ?? '').toLowerCase().contains('credited')) {
+    final body = (message.body ?? '').toLowerCase();
+    if (body.contains('debited') ||
+        body.contains('credited') ||
+        body.contains('sent') ||
+        body.contains('spent')) {
       // Maybe allow if it looks like transaction but not from specific sender?
       // For now, strict or loose?
       // Let's rely on SmsParser returning null if it can't parse amount/logic.

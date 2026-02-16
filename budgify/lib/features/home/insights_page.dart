@@ -60,15 +60,72 @@ class InsightsPage extends ConsumerWidget {
                       child: Center(child: Text('No expense data yet')),
                     );
                   }
-                  return SizedBox(
-                    height: 250,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
-                        sections: _generateSections(data),
+                  final totalExpense =
+                      data.values.fold(0.0, (sum, item) => sum + item);
+
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: 250,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 40,
+                            sections: _generateSections(data, totalExpense),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Details',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 16),
+                      // Breakdown List
+                      ...data.entries.map((entry) {
+                        final percentage = (entry.value / totalExpense * 100);
+                        final color = _getColorForCategory(entry.key);
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: color.withOpacity(0.2),
+                              child: Icon(
+                                _getIconDataForCategory(entry.key),
+                                color: color,
+                              ),
+                            ),
+                            title: Text(entry.key,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: LinearProgressIndicator(
+                              value: percentage / 100,
+                              backgroundColor: Colors.grey[200],
+                              color: color,
+                            ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${AppStrings.currency} ${entry.value.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
+                                ),
+                                Text(
+                                  '${percentage.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                      color: Colors.grey[600], fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -81,18 +138,27 @@ class InsightsPage extends ConsumerWidget {
     );
   }
 
-  List<PieChartSectionData> _generateSections(Map<String, double> data) {
+  List<PieChartSectionData> _generateSections(
+      Map<String, double> data, double total) {
     return data.entries.map((entry) {
       final color = _getColorForCategory(entry.key);
+      final percentage = (entry.value / total) * 100;
+
       return PieChartSectionData(
         color: color,
         value: entry.value,
-        title: '', // Hide title on chart to keep it clean, or show percentage
+        title: '${percentage.toStringAsFixed(0)}%',
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
         radius: 50,
         badgeWidget: _Badge(
-          entry.key,
+          _getIconDataForCategory(entry.key),
           size: 40,
           borderColor: color,
+          iconColor: color,
         ),
         badgePositionPercentageOffset: .98,
       );
@@ -113,14 +179,31 @@ class InsightsPage extends ConsumerWidget {
         return Colors.grey;
     }
   }
+
+  IconData _getIconDataForCategory(String category) {
+    switch (category) {
+      case 'Food':
+        return Icons.fastfood;
+      case 'Petrol':
+        return Icons.local_gas_station;
+      case 'Entertainment':
+        return Icons.movie;
+      case 'Other':
+        return Icons.category;
+      default:
+        return Icons.help_outline;
+    }
+  }
 }
 
 class _Badge extends StatelessWidget {
-  final String text;
+  final IconData icon;
   final double size;
   final Color borderColor;
+  final Color iconColor;
 
-  const _Badge(this.text, {required this.size, required this.borderColor});
+  const _Badge(this.icon,
+      {required this.size, required this.borderColor, required this.iconColor});
 
   @override
   Widget build(BuildContext context) {
@@ -137,12 +220,10 @@ class _Badge extends StatelessWidget {
         ],
       ),
       child: Center(
-        child: Text(
-          text.substring(0, 1),
-          style: TextStyle(
-              fontSize: size * 0.4,
-              fontWeight: FontWeight.bold,
-              color: Colors.black),
+        child: Icon(
+          icon,
+          color: iconColor,
+          size: size * 0.5,
         ),
       ),
     );

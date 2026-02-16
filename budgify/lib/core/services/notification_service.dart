@@ -42,11 +42,21 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
+      icon: '@mipmap/ic_launcher',
       actions: <AndroidNotificationAction>[
         AndroidNotificationAction('FOOD', 'Food'),
         AndroidNotificationAction('PETROL', 'Petrol'),
         AndroidNotificationAction('ENTERTAINMENT', 'Entertainment'),
         AndroidNotificationAction('OTHER', 'Other'),
+        AndroidNotificationAction(
+          'ADD_NOTE',
+          'Add Note',
+          inputs: <AndroidNotificationActionInput>[
+            AndroidNotificationActionInput(
+              label: 'Enter note...',
+            ),
+          ],
+        ),
       ],
     );
     const NotificationDetails platformChannelSpecifics =
@@ -67,8 +77,8 @@ class NotificationService {
     // payload contains transaction timestamp or ID or hash
     if (notificationResponse.actionId != null) {
       // User tapped an action button
-      handleAction(
-          notificationResponse.actionId!, notificationResponse.payload);
+      handleAction(notificationResponse.actionId!, notificationResponse.payload,
+          notificationResponse.input);
     }
   }
 
@@ -77,56 +87,103 @@ class NotificationService {
       NotificationResponse notificationResponse) {
     // Handle background taps
     if (notificationResponse.actionId != null) {
-      handleAction(
-          notificationResponse.actionId!, notificationResponse.payload);
+      handleAction(notificationResponse.actionId!, notificationResponse.payload,
+          notificationResponse.input);
     }
   }
 
-  static void handleAction(String actionId, String? payload) async {
+  static void handleAction(
+      String actionId, String? payload, String? input) async {
     if (payload == null) return;
 
     final int? transactionId = int.tryParse(payload);
     if (transactionId == null) return;
 
     final dbHelper = DatabaseHelper();
-    // Fetch transaction first? Or just update specific field if possible.
-    // Since we need to update category and is_categorized, but keep other fields, fetch is safer.
-    // However, for efficiency, just raw update query is better, but our db helper uses updateTransaction(model).
-    // So we fetch, modify, update.
+    final FlutterLocalNotificationsPlugin flnp =
+        FlutterLocalNotificationsPlugin();
 
-    // We need to get the transaction by ID. We don't have getById method in DB helper yet,
-    // let's assume we can fetch all or query by ID.
-    // Let's add getById to DbHelper or just query here for now using raw query if needed,
-    // but cleaner to add method to helper.
-    // For now, I'll update using raw update for speed/simplicity in this context or wait.
-    // Actually, I'll use the repository/helper if available.
-    // Let's assume getTransactionById exists or I'll add it.
-    // Or I can just execute raw SQL:
     try {
       final db = await dbHelper.database;
-      String category = 'Uncategorized';
-      switch (actionId) {
-        case 'FOOD':
-          category = 'Food';
-          break;
-        case 'PETROL':
-          category = 'Petrol';
-          break;
-        case 'ENTERTAINMENT':
-          category = 'Entertainment';
-          break;
-        case 'OTHER':
-          category = 'Other';
-          break;
+      bool success = false;
+      String updateMessage = '';
+
+      if (actionId == 'ADD_NOTE') {
+        if (input != null && input.isNotEmpty) {
+          await db.update(
+            'transactions',
+            {'note': input},
+            where: 'id = ?',
+            whereArgs: [transactionId],
+          );
+          success = true;
+          updateMessage = 'Note added';
+          print('Updated Transaction $transactionId with note: $input');
+        }
+      } else {
+        String category = 'Uncategorized';
+        switch (actionId) {
+          case 'FOOD':
+            category = 'Food';
+            break;
+          case 'PETROL':
+            category = 'Petrol';
+            break;
+          case 'ENTERTAINMENT':
+            category = 'Entertainment';
+            break;
+          case 'OTHER':
+            category = 'Other';
+            break;
+        }
+
+        await db.update(
+          'transactions',
+          {'category': category, 'is_categorized': 1},
+          where: 'id = ?',
+          whereArgs: [transactionId],
+        );
+        success = true;
+        updateMessage = 'Categorized as $category';
+        print('Updated Transaction $transactionId to $category');
       }
 
-      await db.update(
-        'transactions',
-        {'category': category, 'is_categorized': 1},
-        where: 'id = ?',
-        whereArgs: [transactionId],
-      );
-      print('Updated Transaction $transactionId to $category');
+      if (success) {
+        // Show success notification (Tick)
+        // We reuse the same ID to update the existing notification
+        const AndroidNotificationDetails androidPlatformChannelSpecifics =
+            AndroidNotificationDetails(
+          'budgify_channel_id',
+          'Budify Transactions',
+          channelDescription: 'Notifications for detected transactions',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker',
+          icon: '@mipmap/ic_launcher',
+          onlyAlertOnce: true, // Don't alert again for the update
+          timeoutAfter:
+              1000, // Auto cancel after 1 second (native support if available)
+        );
+        const NotificationDetails platformChannelSpecifics =
+            NotificationDetails(android: androidPlatformChannelSpecifics);
+
+        // Determine ID. If payload was just ID, we use it directly if it was used as notification ID.
+        // Assuming notification ID matches transaction ID for simplicity or passed via some mechanism.
+        // In showNotification, we passed `id`. If payload is transactionId, and we used it as notification Id?
+        // Let's assume transactionId IS the notificationId for 1:1 mapping.
+
+        await flnp.show(
+          transactionId,
+          '✅ Success',
+          updateMessage,
+          platformChannelSpecifics,
+          payload: payload,
+        );
+
+        // Explicit cancel after delay as backup to timeoutAfter
+        await Future.delayed(const Duration(seconds: 1));
+        await flnp.cancel(transactionId);
+      }
     } catch (e) {
       print('Error updating transaction from notification: $e');
     }

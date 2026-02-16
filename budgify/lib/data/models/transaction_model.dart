@@ -12,6 +12,7 @@ class TransactionModel {
   final String? referenceId;
   final String source; // 'SMS' or 'MANUAL'
   final String? smsHash;
+  final String? note; // New field
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -29,6 +30,7 @@ class TransactionModel {
     this.referenceId,
     this.source = 'MANUAL',
     this.smsHash,
+    this.note,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -49,6 +51,7 @@ class TransactionModel {
       'reference_id': referenceId,
       'source': source,
       'sms_hash': smsHash,
+      'note': note,
       'created_at': createdAt.toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -69,6 +72,7 @@ class TransactionModel {
       referenceId: map['reference_id'],
       source: map['source'],
       smsHash: map['sms_hash'],
+      note: map['note'],
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: DateTime.parse(map['updated_at']),
     );
@@ -88,6 +92,7 @@ class TransactionModel {
     String? referenceId,
     String? source,
     String? smsHash,
+    String? note,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -105,6 +110,7 @@ class TransactionModel {
       referenceId: referenceId ?? this.referenceId,
       source: source ?? this.source,
       smsHash: smsHash ?? this.smsHash,
+      note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

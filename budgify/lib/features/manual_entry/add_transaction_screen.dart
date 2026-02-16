@@ -16,6 +16,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _merchantController = TextEditingController();
+  final _noteController = TextEditingController();
 
   String _type = 'DEBIT';
   String _category = 'Uncategorized';
@@ -25,6 +26,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   void dispose() {
     _amountController.dispose();
     _merchantController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -55,6 +57,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         category: _category,
         isCategorized: _category != 'Uncategorized',
         smsBody: '',
+        note: _noteController.text,
         source: 'MANUAL',
       );
 
@@ -107,6 +110,16 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Note
+              TextFormField(
+                controller: _noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Note (Optional)',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 16),
 

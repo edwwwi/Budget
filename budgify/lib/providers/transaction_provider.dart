@@ -12,7 +12,7 @@ final transactionListProvider =
 });
 
 class TransactionNotifier extends AsyncNotifier<List<TransactionModel>> {
-  late final TransactionRepository _repository;
+  late TransactionRepository _repository;
 
   @override
   Future<List<TransactionModel>> build() async {
