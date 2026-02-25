@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../data/database/database_helper.dart';
 
@@ -44,10 +45,6 @@ class NotificationService {
       ticker: 'ticker',
       icon: '@mipmap/ic_launcher',
       actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('FOOD', 'Food'),
-        AndroidNotificationAction('PETROL', 'Petrol'),
-        AndroidNotificationAction('ENTERTAINMENT', 'Entertainment'),
-        AndroidNotificationAction('OTHER', 'Other'),
         AndroidNotificationAction(
           'ADD_NOTE',
           'Add Note',
@@ -57,6 +54,10 @@ class NotificationService {
             ),
           ],
         ),
+        AndroidNotificationAction('FOOD', 'Food'),
+        AndroidNotificationAction('PETROL', 'Petrol'),
+        AndroidNotificationAction('ENTERTAINMENT', 'Entertainment'),
+        AndroidNotificationAction('OTHER', 'Other'),
       ],
     );
     const NotificationDetails platformChannelSpecifics =
@@ -103,10 +104,12 @@ class NotificationService {
     final FlutterLocalNotificationsPlugin flnp =
         FlutterLocalNotificationsPlugin();
 
+    // Dismiss the notification immediately upon interaction
+    await flnp.cancel(transactionId);
+
     try {
       final db = await dbHelper.database;
       bool success = false;
-      String updateMessage = '';
 
       if (actionId == 'ADD_NOTE') {
         if (input != null && input.isNotEmpty) {
@@ -117,8 +120,7 @@ class NotificationService {
             whereArgs: [transactionId],
           );
           success = true;
-          updateMessage = 'Note added';
-          print('Updated Transaction $transactionId with note: $input');
+          debugPrint('Updated Transaction $transactionId with note: $input');
         }
       } else {
         String category = 'Uncategorized';
@@ -144,48 +146,15 @@ class NotificationService {
           whereArgs: [transactionId],
         );
         success = true;
-        updateMessage = 'Categorized as $category';
-        print('Updated Transaction $transactionId to $category');
+        debugPrint('Updated Transaction $transactionId to $category');
       }
 
       if (success) {
-        // Show success notification (Tick)
-        // We reuse the same ID to update the existing notification
-        const AndroidNotificationDetails androidPlatformChannelSpecifics =
-            AndroidNotificationDetails(
-          'budgify_channel_id',
-          'Budify Transactions',
-          channelDescription: 'Notifications for detected transactions',
-          importance: Importance.max,
-          priority: Priority.high,
-          ticker: 'ticker',
-          icon: '@mipmap/ic_launcher',
-          onlyAlertOnce: true, // Don't alert again for the update
-          timeoutAfter:
-              1000, // Auto cancel after 1 second (native support if available)
-        );
-        const NotificationDetails platformChannelSpecifics =
-            NotificationDetails(android: androidPlatformChannelSpecifics);
-
-        // Determine ID. If payload was just ID, we use it directly if it was used as notification ID.
-        // Assuming notification ID matches transaction ID for simplicity or passed via some mechanism.
-        // In showNotification, we passed `id`. If payload is transactionId, and we used it as notification Id?
-        // Let's assume transactionId IS the notificationId for 1:1 mapping.
-
-        await flnp.show(
-          transactionId,
-          '✅ Success',
-          updateMessage,
-          platformChannelSpecifics,
-          payload: payload,
-        );
-
-        // Explicit cancel after delay as backup to timeoutAfter
-        await Future.delayed(const Duration(seconds: 1));
-        await flnp.cancel(transactionId);
+        // We already cancelled the original notification at the top of this function.
+        // No need to show a success tick, the disappearance of the notification is sufficient feedback.
       }
     } catch (e) {
-      print('Error updating transaction from notification: $e');
+      debugPrint('Error updating transaction from notification: $e');
     }
   }
 }

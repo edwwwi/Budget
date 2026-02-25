@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/transaction_provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/transaction_model.dart';
@@ -33,12 +36,76 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
     }
   }
 
+  Future<void> _exportTransactions(List<TransactionModel> transactions) async {
+    try {
+      if (transactions.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No transactions to export')),
+        );
+        return;
+      }
+
+      final StringBuffer csvBuffer = StringBuffer();
+      // Write Header
+      csvBuffer.writeln('Date,Amount,Merchant,Type,Category,Note');
+
+      // Write Data
+      for (var t in transactions) {
+        final date = DateFormat('yyyy-MM-dd HH:mm:ss').format(t.timestamp);
+        final amount = t.amount.toStringAsFixed(2);
+        // Escape quotes to avoid breaking csv
+        final merchant = t.merchant.replaceAll('"', '""');
+        final type = t.type;
+        final category = t.category.replaceAll('"', '""');
+        final note = (t.note ?? '').replaceAll('"', '""');
+
+        csvBuffer.writeln(
+            '"$date","$amount","$merchant","$type","$category","$note"');
+      }
+
+      // Save to temp file
+      final directory = await getTemporaryDirectory();
+      final String timestampStr =
+          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final String filePath =
+          '${directory.path}/transactions_$timestampStr.csv';
+      final File file = File(filePath);
+
+      await file.writeAsString(csvBuffer.toString());
+
+      // Share
+      if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
+        // ignore: deprecated_member_use
+        await Share.shareXFiles([XFile(filePath)], text: 'Budify Transactions');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to export: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(
+        title: const Text('History'),
+        actions: [
+          transactionsAsync.maybeWhen(
+            data: (transactions) => IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Export to CSV',
+              onPressed: () => _exportTransactions(transactions),
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           return ref.read(transactionListProvider.notifier).refresh();
@@ -259,7 +326,7 @@ class _EditTransactionSheetState extends ConsumerState<_EditTransactionSheet> {
                     _selectedCategory = category;
                   });
                 },
-                selectedColor: AppColors.primary.withOpacity(0.2),
+                selectedColor: AppColors.primary.withValues(alpha: 0.2),
                 checkmarkColor: AppColors.primary,
               );
             }).toList(),

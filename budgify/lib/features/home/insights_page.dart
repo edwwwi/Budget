@@ -91,7 +91,7 @@ class InsightsPage extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: color.withOpacity(0.2),
+                              backgroundColor: color.withValues(alpha: 0.2),
                               child: Icon(
                                 _getIconDataForCategory(entry.key),
                                 color: color,
@@ -124,7 +124,7 @@ class InsightsPage extends ConsumerWidget {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   );
                 },

@@ -140,7 +140,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
               // Category Dropdown
               DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),

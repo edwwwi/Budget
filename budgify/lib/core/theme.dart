@@ -6,10 +6,10 @@ class AppTheme {
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.background,
     primaryColor: AppColors.primary,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      background: AppColors.background,
-      surface: AppColors.cardBackground,
+    colorScheme: const ColorScheme.light(
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      surface: AppColors.background,
     ),
     cardTheme: CardThemeData(
       color: AppColors.cardBackground,

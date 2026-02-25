@@ -82,7 +82,7 @@ final categoryBreakdownProvider =
   return transactions.whenData((list) {
     final Map<String, double> breakdown = {};
     for (var t in list) {
-      if (t.type == 'DEBIT') {
+      if (t.type == 'DEBIT' && t.category != 'Uncategorized') {
         breakdown[t.category] = (breakdown[t.category] ?? 0) + t.amount;
       }
     }
