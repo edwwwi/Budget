@@ -4,7 +4,7 @@ import '../data/database/database_helper.dart';
 import '../core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
-// Top-level function for background handling
+// Top-level function for background handling msg
 @pragma('vm:entry-point')
 void backgroundMessageHandler(SmsMessage message) async {
   debugPrint("Background SMS received: ${message.body}");
