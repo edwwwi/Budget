@@ -123,7 +123,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Type Segmented Button
+              // Type Segmented Buttons
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'DEBIT', label: Text('Expense')),
