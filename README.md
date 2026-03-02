@@ -1,13 +1,13 @@
-# 🚀 Budify --- Smart Automated Expense Tracker (Flutter)
+#  Budify --- Smart Automated Expense Tracker (Flutter)
 
-> 📱 A high-performance Flutter expense tracking app that automatically
+>  A high-performance Flutter expense tracking app that automatically
 > detects bank transactions via SMS, categorizes expenses with
 > actionable notifications, and delivers powerful financial insights ---
 > all with a clean, minimalist UI.
 
 ------------------------------------------------------------------------
 
-## 🔥 Why Budify?
+##  Why Budify?
 
 Budify is a production-grade Flutter application designed to automate
 personal expense tracking using real-time SMS interception, SQLite local
@@ -15,34 +15,34 @@ storage, and interactive notifications.
 
 Unlike traditional budget apps that require manual entry, Budify:
 
-✅ Automatically detects transactions from bank SMS\
-✅ Extracts amount, merchant & transaction type using Regex\
-✅ Instantly shows actionable category notifications\
-✅ Provides real-time expense analytics & donut charts\
-✅ Works fully offline with local database
+ Automatically detects transactions from bank SMS\
+ Extracts amount, merchant & transaction type using Regex\
+ Instantly shows actionable category notifications\
+ Provides real-time expense analytics & donut charts\
+ Works fully offline with local database
 
 ------------------------------------------------------------------------
 
-## ✨ Key Features
+##  Key Features
 
-### 📩 Automated SMS Expense Detection
+###  Automated SMS Expense Detection
 
 -   Listens to Federal Bank SMS
 -   Extracts transaction details using Regex parsing
 -   Prevents duplicate entries using SMS hashing
 -   Secure and local-only storage
 
-### 🔔 Actionable Smart Notifications
+###  Actionable Smart Notifications
 
 -   Instant expense detection alert
 -   One-tap categorization:
-    -   🍔 Food
-    -   ⛽ Petrol
-    -   🎬 Entertainment
-    -   📦 Other
+    -    Food
+    -    Petrol
+    -    Entertainment
+    -    Other
 -   Updates database instantly on selection
 
-### 📊 Insights & Analytics Dashboard
+###  Insights & Analytics Dashboard
 
 -   Donut Chart (fl_chart)
 -   Day / Month / Year filtering
@@ -51,14 +51,14 @@ Unlike traditional budget apps that require manual entry, Budify:
 -   Net balance calculation
 -   Top spending category detection
 
-### 📜 Smart Transaction History
+###  Smart Transaction History
 
 -   Categorized & Uncategorized highlighting
 -   Editable transaction bottom sheet
 -   Manual transaction entry
 -   Clean and fast ListView rendering
 
-### 🎨 Modern Soft UI Design
+###  Modern Soft UI Design
 
 -   Minimalist white layout
 -   Smooth UI
