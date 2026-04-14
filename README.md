@@ -194,14 +194,6 @@ flutter run
 
 ------------------------------------------------------------------------
 
-## 📌 Requirements
-
--   Android (SMS listener requires Android)
--   Flutter SDK (latest stable)
--   Dart SDK
-
-------------------------------------------------------------------------
-
 ## 🏆 Project Highlights
 
 -   Real-world problem solving
@@ -210,18 +202,3 @@ flutter run
 -   Local database indexing
 -   Clean architecture design
 -   Production-ready scalable structure
-
-------------------------------------------------------------------------
-
-
-
-# 💡 Built With Passion Using Flutter
-
-Budify is designed as a scalable, real-world finance automation app
-demonstrating:
-
--   Background services
--   Database design
--   Notification handling
--   Clean architecture
--   High-performance Flutter patterns
