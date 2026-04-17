@@ -191,14 +191,3 @@ cd budify
 flutter pub get
 flutter run
 ```
-
-------------------------------------------------------------------------
-
-## 🏆 Project Highlights
-
--   Real-world problem solving
--   Background service implementation
--   Advanced notification handling
--   Local database indexing
--   Clean architecture design
--   Production-ready scalable structure
