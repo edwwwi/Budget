@@ -9,7 +9,7 @@ import 'core/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+////////////////////////
   // Initialize Services
   await NotificationService().init();
   SmsListenerService().init();
