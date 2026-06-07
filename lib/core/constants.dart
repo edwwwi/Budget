@@ -13,8 +13,9 @@ class AppColors {
   static const Color food = Color(0xFFFF7675);
   static const Color petrol = Color(0xFF74B9FF);
   static const Color entertainment = Color(0xFFA29BFE);
+  static const Color travel = Color(0xFF00B894); // Teal/Green
+  static const Color maintenance = Color(0xFF2E7D32); // Deep Green
   static const Color other = Color(0xFFDFE6E9);
-  static const Color income = Color(0xFF00b894);
   static const Color expense = Color(0xFFd63031);
 }
 
@@ -24,4 +25,14 @@ class AppStrings {
       '₹'; // Assuming INR based on Federal Bank context
   static const String expenseDetected = 'Expense Detected';
   static const String uncategorized = 'Uncategorized';
+  
+  // Category Names
+  static const List<String> categories = [
+    'Food',
+    'Petrol',
+    'Travel',
+    'Entertainment',
+    'Maintenance',
+    'Other'
+  ];
 }

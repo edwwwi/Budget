@@ -13,10 +13,10 @@ class SmsParser {
       caseSensitive: false);
 
   static final RegExp _accountRegex =
-      RegExp(r'(?:Ac|A/c)\s+[X\d]*(\d{4})', caseSensitive: false);
+      RegExp(r'(?:Ac|A/c)\s+[*xX\-\d]*(\d{4})', caseSensitive: false);
 
   static final RegExp _merchantRegex = RegExp(
-      r'(?:Info:|\bto\b)\s*(.*?)(?:\.|Ref:|Bal|$)',
+      r'(?:Info:|\bto\b)\s*(.*?)(?:\.|Ref:|Bal|\n|On|$)',
       caseSensitive: false);
 
   static final RegExp _balanceRegex = RegExp(
@@ -26,19 +26,46 @@ class SmsParser {
   static TransactionModel? parse(String? body, int? timestamp) {
     if (body == null) return null;
 
-    // Detect Transaction Type
-    String type = 'DEBIT';
     final lowerBody = body.toLowerCase();
-    if (lowerBody.contains('credited')) {
-      type = 'CREDIT';
-    } else if (lowerBody.contains('debited') ||
-        lowerBody.contains('sent') ||
-        lowerBody.contains('spent')) {
-      type = 'DEBIT';
-    } else {
-      // Return null if not a recognized transaction type
+
+    // Explicitly ignore credit/income keywords
+    if (lowerBody.contains('credited') || 
+        lowerBody.contains('refund') || 
+        lowerBody.contains('cashback') || 
+        lowerBody.contains('received') ||
+        lowerBody.contains('salary') ||
+        lowerBody.contains('deposit') ||
+        lowerBody.contains('reversal')) {
       return null;
     }
+
+    // Explicitly ignore OTP and verification messages
+    if (lowerBody.contains('otp') ||
+        lowerBody.contains('one time password') ||
+        lowerBody.contains('verification code') ||
+        lowerBody.contains('do not share') ||
+        lowerBody.contains('login')) {
+      return null;
+    }
+
+    // Detect Transaction Type
+    bool isDebit = lowerBody.contains('debited') ||
+        lowerBody.contains('spent') ||
+        lowerBody.contains('paid') ||
+        lowerBody.contains('purchase') ||
+        lowerBody.contains('pos transaction') ||
+        lowerBody.contains('upi payment') ||
+        lowerBody.contains('bill payment') ||
+        lowerBody.contains('withdrawal') ||
+        lowerBody.contains('payment made') ||
+        lowerBody.contains('transaction at merchant') ||
+        lowerBody.contains('online purchase') ||
+        lowerBody.contains('sent');
+
+    if (!isDebit) {
+      return null;
+    }
+    String type = 'DEBIT';
 
     // Extract Amount
     final amountMatch = _amountRegex.firstMatch(body);
@@ -55,14 +82,36 @@ class SmsParser {
 
     // Cleanup Merchant string
     if (merchant.startsWith('UPI/')) {
-      // Typical UPI: UPI/ID/MERCHANT -> extract merchant
       List<String> parts = merchant.split('/');
       if (parts.length > 2) {
         merchant = parts.last;
       }
     } else if (merchant.toLowerCase().contains('your a/c')) {
-      // "credited to your A/c" -> "your A/c" captured by 'to'
       merchant = 'Unknown';
+    } else if (RegExp(r'^\d{10}').hasMatch(merchant)) {
+      merchant = 'Unknown';
+    }
+
+    // Smart Auto-Categorization
+    String category = 'Uncategorized';
+    bool isCategorized = false;
+    final lowerMerchant = merchant.toLowerCase();
+
+    if (lowerMerchant.contains('swiggy') || lowerMerchant.contains('zomato')) {
+      category = 'Food';
+      isCategorized = true;
+    } else if (lowerMerchant.contains('indian oil') || lowerMerchant.contains('hpcl') || lowerMerchant.contains('petrol')) {
+      category = 'Petrol';
+      isCategorized = true;
+    } else if (lowerMerchant.contains('bookmyshow') || lowerMerchant.contains('movie')) {
+      category = 'Entertainment';
+      isCategorized = true;
+    } else if (lowerMerchant.contains('irctc') || lowerMerchant.contains('uber') || lowerMerchant.contains('ola') || lowerMerchant.contains('ticket')) {
+      category = 'Travel';
+      isCategorized = true;
+    } else if (lowerMerchant.contains('electricity') || lowerMerchant.contains('asianet') || lowerMerchant.contains('jio fiber') || lowerMerchant.contains('rent') || lowerMerchant.contains('broadband') || lowerMerchant.contains('water bill')) {
+      category = 'Maintenance';
+      isCategorized = true;
     }
 
     // Extract Balance
@@ -72,8 +121,7 @@ class SmsParser {
         : null;
 
     // Generate Hash for deduplication
-    String raw =
-        '${amount}_${type}_${accountNumber}_${timestamp ?? DateTime.now().millisecondsSinceEpoch}';
+    String raw = '${amount}_${type}_${accountNumber}_${timestamp ?? DateTime.now().millisecondsSinceEpoch}';
     var bytes = utf8.encode(raw);
     String hash = sha256.convert(bytes).toString();
 
@@ -82,6 +130,8 @@ class SmsParser {
       merchant: merchant,
       timestamp: DateTime.now(),
       type: type,
+      category: category,
+      isCategorized: isCategorized,
       smsBody: body,
       accountNumber: accountNumber,
       balance: balance,

@@ -63,9 +63,8 @@ Future<void> _processSms(SmsMessage message) async {
       // Trigger Notification
       await NotificationService.showNotification(
         id: id,
-        title: 'Expense Detected',
-        body: '${transaction.merchant}: ${transaction.amount}',
-        payload: id.toString(),
+        amount: transaction.amount,
+        merchant: transaction.merchant,
       );
     }
   }

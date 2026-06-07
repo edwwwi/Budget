@@ -1,6 +1,31 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'dart:isolate';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../data/database/database_helper.dart';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+  
+  if (notificationResponse.payload == 'daily_summary') {
+    final SendPort? sendPort = IsolateNameServer.lookupPortByName('budgify_refresh');
+    if (sendPort != null) {
+      sendPort.send('show_today_summary');
+    }
+    return;
+  }
+
+  if (notificationResponse.actionId != null) {
+    NotificationService.handleAction(
+        notificationResponse.id,
+        notificationResponse.actionId!,
+        notificationResponse.payload,
+        notificationResponse.input);
+  }
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -26,90 +51,136 @@ class NotificationService {
     );
   }
 
-  // Expose for background usage if needed (static method)
   static Future<void> showNotification({
     required int id,
-    required String title,
-    required String body,
-    required String payload,
+    required double amount,
+    required String merchant,
   }) async {
     final FlutterLocalNotificationsPlugin flnp =
         FlutterLocalNotificationsPlugin();
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    
+    final amountString = '₹${amount.toStringAsFixed(0)}';
+
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'budgify_channel_id',
       'Budify Transactions',
       channelDescription: 'Notifications for detected transactions',
       importance: Importance.max,
       priority: Priority.high,
-      ticker: 'ticker',
+      ticker: 'Expense Detected',
       icon: '@mipmap/ic_launcher',
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'ADD_NOTE',
-          'Add Note',
-          inputs: <AndroidNotificationActionInput>[
-            AndroidNotificationActionInput(
-              label: 'Enter note...',
-            ),
-          ],
-        ),
-        AndroidNotificationAction('FOOD', 'Food'),
-        AndroidNotificationAction('PETROL', 'Petrol'),
-        AndroidNotificationAction('ENTERTAINMENT', 'Entertainment'),
-        AndroidNotificationAction('OTHER', 'Other'),
+      color: const Color(0xFF6C63FF), // Primary Brand Color
+      styleInformation: BigTextStyleInformation(
+        '<br><b>Select Category</b>',
+        htmlFormatBigText: true,
+        contentTitle: '<b>$amountString</b><br><small>$merchant</small>',
+        htmlFormatContentTitle: true,
+        summaryText: '💸 Expense Detected',
+        htmlFormatSummaryText: true,
+      ),
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction('FOOD', '🍔 Food', cancelNotification: false),
+        AndroidNotificationAction('PETROL', '⛽ Petrol', cancelNotification: false),
+        AndroidNotificationAction('TRAVEL', '✈️ Travel', cancelNotification: false),
+        AndroidNotificationAction('ENTERTAINMENT', '🎬 Ent.', cancelNotification: false),
+        AndroidNotificationAction('MAINTENANCE', '🏠 Maint.', cancelNotification: false),
+        AndroidNotificationAction('OTHER', '📦 Other', cancelNotification: false),
       ],
     );
-    const NotificationDetails platformChannelSpecifics =
+    final NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
     await flnp.show(
       id,
-      title,
-      body,
+      'Expense Detected',
+      '$merchant: $amountString',
       platformChannelSpecifics,
-      payload: payload,
+      payload: id.toString(),
     );
+  }
+  
+  static Future<void> showSuccessNotification({
+    required int id,
+    required String amountString,
+    required String merchant,
+    required String category,
+  }) async {
+    final FlutterLocalNotificationsPlugin flnp =
+        FlutterLocalNotificationsPlugin();
+
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'budgify_channel_id',
+      'Budify Transactions',
+      channelDescription: 'Notifications for detected transactions',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: const Color(0xFF4CAF50), // Green Accent for success
+      styleInformation: BigTextStyleInformation(
+        '<br>Category:<br><b>$category</b><br><br>Saved Successfully',
+        htmlFormatBigText: true,
+        contentTitle: '<b>$amountString</b><br><small>$merchant</small>',
+        htmlFormatContentTitle: true,
+        summaryText: '✓ Expense Categorized',
+        htmlFormatSummaryText: true,
+      ),
+    );
+    final NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flnp.show(
+      id,
+      '✓ Expense Categorized',
+      'Saved Successfully',
+      platformChannelSpecifics,
+    );
+    
+    // Auto dismiss after 1 second
+    Future.delayed(const Duration(seconds: 1), () {
+      flnp.cancel(id);
+    });
   }
 
   static void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) async {
-    // Handle foreground taps
-    // payload contains transaction timestamp or ID or hash
-    if (notificationResponse.actionId != null) {
-      // User tapped an action button
-      handleAction(notificationResponse.actionId!, notificationResponse.payload,
-          notificationResponse.input);
+    if (notificationResponse.payload == 'daily_summary') {
+      final SendPort? sendPort = IsolateNameServer.lookupPortByName('budgify_refresh');
+      if (sendPort != null) {
+        sendPort.send('show_today_summary');
+      }
+      return;
     }
-  }
-
-  @pragma('vm:entry-point')
-  static void notificationTapBackground(
-      NotificationResponse notificationResponse) {
-    // Handle background taps
+    
     if (notificationResponse.actionId != null) {
-      handleAction(notificationResponse.actionId!, notificationResponse.payload,
+      handleAction(
+          notificationResponse.id,
+          notificationResponse.actionId!,
+          notificationResponse.payload,
           notificationResponse.input);
     }
   }
 
   static void handleAction(
-      String actionId, String? payload, String? input) async {
-    if (payload == null) return;
-
-    final int? transactionId = int.tryParse(payload);
-    if (transactionId == null) return;
+      int? notifId, String actionId, String? payload, String? input) async {
+    
+    final int? transactionId = notifId ?? (payload != null ? int.tryParse(payload) : null);
+    
+    if (transactionId == null) {
+      debugPrint("ERROR: transactionId is null in handleAction. Payload: $payload");
+      return;
+    }
 
     final dbHelper = DatabaseHelper();
     final FlutterLocalNotificationsPlugin flnp =
         FlutterLocalNotificationsPlugin();
 
-    // Dismiss the notification immediately upon interaction
-    await flnp.cancel(transactionId);
-
     try {
       final db = await dbHelper.database;
       bool success = false;
+      String category = 'Uncategorized';
+      String categoryIcon = '';
 
       if (actionId == 'ADD_NOTE') {
         if (input != null && input.isNotEmpty) {
@@ -120,41 +191,88 @@ class NotificationService {
             whereArgs: [transactionId],
           );
           success = true;
-          debugPrint('Updated Transaction $transactionId with note: $input');
         }
       } else {
-        String category = 'Uncategorized';
         switch (actionId) {
           case 'FOOD':
             category = 'Food';
+            categoryIcon = '🍔 Food';
             break;
           case 'PETROL':
             category = 'Petrol';
+            categoryIcon = '⛽ Petrol';
+            break;
+          case 'TRAVEL':
+            category = 'Travel';
+            categoryIcon = '✈️ Travel';
             break;
           case 'ENTERTAINMENT':
             category = 'Entertainment';
+            categoryIcon = '🎬 Entertainment';
+            break;
+          case 'MAINTENANCE':
+            category = 'Maintenance';
+            categoryIcon = '🏠 Maintenance';
             break;
           case 'OTHER':
             category = 'Other';
+            categoryIcon = '📦 Other';
             break;
         }
 
-        await db.update(
+        int updated = await db.update(
           'transactions',
           {'category': category, 'is_categorized': 1},
           where: 'id = ?',
           whereArgs: [transactionId],
         );
-        success = true;
-        debugPrint('Updated Transaction $transactionId to $category');
+        if (updated > 0) {
+          success = true;
+        } else {
+          debugPrint("WARNING: DB update returned 0 rows affected for ID $transactionId");
+        }
       }
 
       if (success) {
-        // We already cancelled the original notification at the top of this function.
-        // No need to show a success tick, the disappearance of the notification is sufficient feedback.
+        // Notify main isolate to refresh Riverpod IMMEDIATELY so the UI reflects the change
+        final SendPort? sendPort = IsolateNameServer.lookupPortByName('budgify_refresh');
+        if (sendPort != null) {
+          sendPort.send('refresh');
+        } else {
+          debugPrint("WARNING: budgify_refresh port not found!");
+        }
+
+        // Fetch transaction to display correct values in success notification
+        final List<Map<String, dynamic>> maps = await db.query(
+          'transactions',
+          where: 'id = ?',
+          whereArgs: [transactionId],
+        );
+        
+        if (maps.isNotEmpty && actionId != 'ADD_NOTE') {
+           // Use (num).toDouble() to prevent type error when SQLite returns int for whole numbers
+           final double amount = (maps.first['amount'] as num).toDouble();
+           final String merchant = maps.first['merchant'] as String;
+           
+           await showSuccessNotification(
+             id: transactionId, 
+             amountString: '₹${amount.toStringAsFixed(0)}', 
+             merchant: merchant, 
+             category: categoryIcon
+           );
+           
+           debugPrint("Transaction Updated: $category");
+        } else {
+           await flnp.cancel(transactionId);
+        }
+      } else {
+         // Force cancel to prevent it from being stuck
+         await flnp.cancel(transactionId);
       }
     } catch (e) {
       debugPrint('Error updating transaction from notification: $e');
+      await flnp.cancel(transactionId);
     }
   }
 }
+

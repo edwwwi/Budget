@@ -22,12 +22,23 @@ dependencies:
   intl: ^0.19.0
   share_plus: ^12.0.1
   path_provider: ^2.1.5
+  workmanager: ^0.9.0
+  shared_preferences: ^2.2.3
+  android_alarm_manager_plus: ^4.0.4
+  video_player: ^2.10.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/track_it2.mp4
 
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/LOGO.png"
