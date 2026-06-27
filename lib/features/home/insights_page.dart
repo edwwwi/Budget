@@ -6,7 +6,7 @@ import '../../core/constants.dart';
 
 class InsightsPage extends ConsumerWidget {
   const InsightsPage({super.key});
-
+////Insights Page
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final breakdownAsync = ref.watch(categoryBreakdownProvider);
