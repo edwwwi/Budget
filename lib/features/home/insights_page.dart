@@ -101,8 +101,8 @@ class InsightsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Date Range Picker
-              _buildDateRangePicker(context, ref, cardColor, textColor),
+              // Time Filters
+              _buildTimeFilters(context, ref, textColor),
               const SizedBox(height: 24),
 
               Text('Category Breakdown',
@@ -157,7 +157,7 @@ class InsightsPage extends ConsumerWidget {
                           (c) => c.name == entry.key,
                           orElse: () => CategoryModel(id: 6, name: entry.key, icon: '📦', color: '0xFF9E9E9E')
                         );
-                        final color = Color(int.parse(category.color));
+                        final color = Color(int.parse(category.color.replaceAll('0x', ''), radix: 16));
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -331,66 +331,86 @@ class InsightsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDateRangePicker(BuildContext context, WidgetRef ref, Color cardColor, Color textColor) {
-    final currentRange = ref.watch(dateRangeProvider);
-    final formatter = DateFormat('dd MMM yyyy');
+  Widget _buildTimeFilters(BuildContext context, WidgetRef ref, Color textColor) {
+    final currentFilter = ref.watch(timeFilterProvider);
+    final customRange = ref.watch(customDateRangeProvider);
+    final formatter = DateFormat('MMM d');
 
-    return GestureDetector(
-      onTap: () async {
-        final DateTimeRange? picked = await showDateRangePicker(
-          context: context,
-          initialDateRange: currentRange,
-          firstDate: DateTime(2000),
-          lastDate: DateTime.now(),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: AppColors.primary,
-                  onPrimary: Colors.white,
-                  onSurface: AppColors.textDark,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (picked != null) {
-          ref.read(dateRangeProvider.notifier).state = picked;
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 8,
-              spreadRadius: 1,
-            )
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.calendar_month, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  '${formatter.format(currentRange.start)} - ${formatter.format(currentRange.end)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    fontSize: 15,
+    String customText = 'Custom Date';
+    if (currentFilter == TimeFilter.custom && customRange != null) {
+      customText = '${formatter.format(customRange.start)} - ${formatter.format(customRange.end)}';
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _buildFilterChip('Today', currentFilter == TimeFilter.today, () {
+            ref.read(timeFilterProvider.notifier).state = TimeFilter.today;
+          }, textColor),
+          const SizedBox(width: 12),
+          _buildFilterChip('This Month', currentFilter == TimeFilter.month, () {
+            ref.read(timeFilterProvider.notifier).state = TimeFilter.month;
+          }, textColor),
+          const SizedBox(width: 12),
+          _buildFilterChip(customText, currentFilter == TimeFilter.custom, () async {
+            final DateTimeRange? picked = await showDateRangePicker(
+              context: context,
+              initialDateRange: customRange ?? ref.read(dateRangeProvider),
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: AppColors.primary,
+                      onPrimary: Colors.white,
+                      onSurface: AppColors.textDark,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const Icon(Icons.arrow_drop_down, color: Colors.grey),
-          ],
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              ref.read(customDateRangeProvider.notifier).state = picked;
+              ref.read(timeFilterProvider.notifier).state = TimeFilter.custom;
+            } else if (currentFilter != TimeFilter.custom) {
+              // If they cancelled and weren't already on custom, do nothing
+            }
+          }, textColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap, Color textColor) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : textColor,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 14,
+          ),
         ),
       ),
     );
@@ -504,7 +524,7 @@ class InsightsPage extends ConsumerWidget {
         (c) => c.name == entry.key,
         orElse: () => CategoryModel(id: 6, name: entry.key, icon: '📦', color: '0xFF9E9E9E')
       );
-      final color = Color(int.parse(category.color));
+      final color = Color(int.parse(category.color.replaceAll('0x', ''), radix: 16));
 
       return PieChartSectionData(
         color: color,

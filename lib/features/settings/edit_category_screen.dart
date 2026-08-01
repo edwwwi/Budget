@@ -147,7 +147,7 @@ class _EditCategoryScreenState extends ConsumerState<EditCategoryScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Color(int.parse(colorHex)),
+                      color: Color(int.parse(colorHex.replaceAll('0x', ''), radix: 16)),
                       shape: BoxShape.circle,
                       border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
                     ),

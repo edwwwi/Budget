@@ -84,11 +84,7 @@ class _BudifyAppState extends ConsumerState<BudifyApp> {
       if (data == 'refresh') {
         ref.read(transactionListProvider.notifier).refresh();
       } else if (data == 'show_today_summary') {
-        final now = DateTime.now();
-        ref.read(dateRangeProvider.notifier).state = DateTimeRange(
-          start: DateTime(now.year, now.month, now.day),
-          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
-        );
+        ref.read(timeFilterProvider.notifier).state = TimeFilter.today;
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
       }
     });

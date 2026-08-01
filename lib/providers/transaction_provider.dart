@@ -5,12 +5,34 @@ import '../data/models/category_model.dart';
 import '../data/repositories/transaction_repository.dart';
 import 'categories_provider.dart';
 
-final dateRangeProvider = StateProvider<DateTimeRange>((ref) {
+enum TimeFilter { today, month, custom }
+
+final timeFilterProvider = StateProvider<TimeFilter>((ref) => TimeFilter.month);
+final customDateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
+
+final dateRangeProvider = Provider<DateTimeRange>((ref) {
+  final filter = ref.watch(timeFilterProvider);
   final now = DateTime.now();
-  return DateTimeRange(
-    start: DateTime(now.year, now.month, 1),
-    end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
-  );
+
+  switch (filter) {
+    case TimeFilter.today:
+      return DateTimeRange(
+        start: DateTime(now.year, now.month, now.day),
+        end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+      );
+    case TimeFilter.month:
+      return DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
+      );
+    case TimeFilter.custom:
+      final customRange = ref.watch(customDateRangeProvider);
+      if (customRange != null) return customRange;
+      return DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
+      );
+  }
 });
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {

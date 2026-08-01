@@ -319,7 +319,7 @@ class _TransactionTile extends ConsumerWidget {
     final bool isDebit = transaction.type == 'DEBIT';
     final Color amountColor = isDebit ? AppColors.textDark : AppColors.secondary;
     final bool isUncategorized = !transaction.isCategorized;
-    final Color categoryColor = Color(int.parse(category.color));
+    final Color categoryColor = Color(int.parse(category.color.replaceAll('0x', ''), radix: 16));
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -338,65 +338,68 @@ class _TransactionTile extends ConsumerWidget {
           width: 1,
         )
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: categoryColor.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              isUncategorized ? '❓' : category.icon,
-              style: const TextStyle(fontSize: 24),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: categoryColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                isUncategorized ? '❓' : category.icon,
+                style: const TextStyle(fontSize: 24),
+              ),
             ),
           ),
-        ),
-        title: Text(transaction.merchant,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+          title: Text(transaction.merchant,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: categoryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isUncategorized ? 'Uncategorized' : category.name,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: categoryColor),
+                    ),
                   ),
-                  child: Text(
-                    isUncategorized ? 'Uncategorized' : category.name,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: categoryColor),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(DateFormat('dd MMM, hh:mm a').format(transaction.timestamp),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  Text(DateFormat('dd MMM, hh:mm a').format(transaction.timestamp),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                ],
+              ),
+            ],
+          ),
+          trailing: Text(
+            '${isDebit ? '' : '+'}${AppStrings.currency}${transaction.amount.toStringAsFixed(0)}',
+            style: TextStyle(
+                color: amountColor, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) {
+                return TransactionEditSheet(transaction: transaction);
+              },
+            );
+          },
         ),
-        trailing: Text(
-          '${isDebit ? '' : '+'}${AppStrings.currency}${transaction.amount.toStringAsFixed(0)}',
-          style: TextStyle(
-              color: amountColor, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) {
-              return TransactionEditSheet(transaction: transaction);
-            },
-          );
-        },
       ),
     );
   }

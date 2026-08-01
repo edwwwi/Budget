@@ -147,10 +147,10 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                     });
                   },
                   backgroundColor: Colors.grey[100],
-                  selectedColor: Color(int.parse(category.color)).withValues(alpha: 0.15),
-                  checkmarkColor: Color(int.parse(category.color)),
+                  selectedColor: Color(int.parse(category.color.replaceAll('0x', ''), radix: 16)).withValues(alpha: 0.15),
+                  checkmarkColor: Color(int.parse(category.color.replaceAll('0x', ''), radix: 16)),
                   labelStyle: TextStyle(
-                    color: isSelected ? Color(int.parse(category.color)) : AppColors.textDark,
+                    color: isSelected ? Color(int.parse(category.color.replaceAll('0x', ''), radix: 16)) : AppColors.textDark,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 );

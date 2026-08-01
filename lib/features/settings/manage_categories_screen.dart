@@ -70,7 +70,7 @@ class _CategoryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Color color = Color(int.parse(category.color));
+    final Color color = Color(int.parse(category.color.replaceAll('0x', ''), radix: 16));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

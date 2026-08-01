@@ -80,12 +80,53 @@ class ExpenseHeatmap extends ConsumerWidget {
                   ),
                 ],
               ),
-              Text(
-                DateFormat('MMMM yyyy').format(targetDate),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark,
+              GestureDetector(
+                onTap: () async {
+                  final List<DateTime> months = [];
+                  final now = DateTime.now();
+                  for (int i = 0; i < 12; i++) {
+                    months.add(DateTime(now.year, now.month - i, 1));
+                  }
+                  
+                  final selected = await showDialog<DateTime>(
+                    context: context,
+                    builder: (context) {
+                      return SimpleDialog(
+                        title: const Text('Select Month'),
+                        children: months.map((m) {
+                          return SimpleDialogOption(
+                            onPressed: () => Navigator.pop(context, m),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(DateFormat('MMMM yyyy').format(m), style: const TextStyle(fontSize: 16)),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }
+                  );
+
+                  if (selected != null) {
+                    final range = DateTimeRange(
+                      start: DateTime(selected.year, selected.month, 1),
+                      end: DateTime(selected.year, selected.month + 1, 0, 23, 59, 59),
+                    );
+                    ref.read(customDateRangeProvider.notifier).state = range;
+                    ref.read(timeFilterProvider.notifier).state = TimeFilter.custom;
+                  }
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      DateFormat('MMMM yyyy').format(targetDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  ],
                 ),
               ),
             ],
