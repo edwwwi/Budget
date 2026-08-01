@@ -61,6 +61,31 @@ class NotificationService {
     
     final amountString = '₹${amount.toStringAsFixed(0)}';
 
+    final dbHelper = DatabaseHelper();
+    final db = await dbHelper.database;
+    final List<Map<String, dynamic>> favMaps = await db.query(
+      'categories',
+      where: 'is_favorite = ?',
+      whereArgs: [1],
+      limit: 3,
+    );
+
+    List<AndroidNotificationAction> actions = [];
+    for (var cat in favMaps) {
+      actions.add(AndroidNotificationAction(
+        cat['id'].toString(), 
+        '${cat['icon']} ${cat['name']}', 
+        cancelNotification: false,
+      ));
+    }
+    
+    if (actions.isEmpty) {
+      // Fallback if no favorites selected
+      actions.add(const AndroidNotificationAction('1', '🍔 Food', cancelNotification: false));
+      actions.add(const AndroidNotificationAction('2', '⛽ Petrol', cancelNotification: false));
+      actions.add(const AndroidNotificationAction('3', '✈️ Travel', cancelNotification: false));
+    }
+
     final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'budgify_channel_id',
@@ -79,14 +104,7 @@ class NotificationService {
         summaryText: '💸 Expense Detected',
         htmlFormatSummaryText: true,
       ),
-      actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction('FOOD', '🍔 Food', cancelNotification: false),
-        AndroidNotificationAction('PETROL', '⛽ Petrol', cancelNotification: false),
-        AndroidNotificationAction('TRAVEL', '✈️ Travel', cancelNotification: false),
-        AndroidNotificationAction('ENTERTAINMENT', '🎬 Ent.', cancelNotification: false),
-        AndroidNotificationAction('MAINTENANCE', '🏠 Maint.', cancelNotification: false),
-        AndroidNotificationAction('OTHER', '📦 Other', cancelNotification: false),
-      ],
+      actions: actions,
     );
     final NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
@@ -193,43 +211,28 @@ class NotificationService {
           success = true;
         }
       } else {
-        switch (actionId) {
-          case 'FOOD':
-            category = 'Food';
-            categoryIcon = '🍔 Food';
-            break;
-          case 'PETROL':
-            category = 'Petrol';
-            categoryIcon = '⛽ Petrol';
-            break;
-          case 'TRAVEL':
-            category = 'Travel';
-            categoryIcon = '✈️ Travel';
-            break;
-          case 'ENTERTAINMENT':
-            category = 'Entertainment';
-            categoryIcon = '🎬 Entertainment';
-            break;
-          case 'MAINTENANCE':
-            category = 'Maintenance';
-            categoryIcon = '🏠 Maintenance';
-            break;
-          case 'OTHER':
-            category = 'Other';
-            categoryIcon = '📦 Other';
-            break;
-        }
-
-        int updated = await db.update(
-          'transactions',
-          {'category': category, 'is_categorized': 1},
-          where: 'id = ?',
-          whereArgs: [transactionId],
-        );
-        if (updated > 0) {
-          success = true;
-        } else {
-          debugPrint("WARNING: DB update returned 0 rows affected for ID $transactionId");
+        final int? catId = int.tryParse(actionId);
+        if (catId != null) {
+          final List<Map<String, dynamic>> catMap = await db.query(
+            'categories',
+            where: 'id = ?',
+            whereArgs: [catId],
+          );
+          if (catMap.isNotEmpty) {
+            categoryIcon = '${catMap.first['icon']} ${catMap.first['name']}';
+          }
+          
+          int updated = await db.update(
+            'transactions',
+            {'category_id': catId, 'is_categorized': 1},
+            where: 'id = ?',
+            whereArgs: [transactionId],
+          );
+          if (updated > 0) {
+            success = true;
+          } else {
+            debugPrint("WARNING: DB update returned 0 rows affected for ID $transactionId");
+          }
         }
       }
 

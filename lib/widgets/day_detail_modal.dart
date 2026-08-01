@@ -5,6 +5,8 @@ import '../../providers/transaction_provider.dart';
 import '../../data/models/transaction_model.dart';
 import '../../core/theme.dart';
 import '../../core/constants.dart';
+import '../../providers/categories_provider.dart';
+import '../../data/models/category_model.dart';
 
 class DayDetailModal extends ConsumerWidget {
   final DateTime date;
@@ -19,6 +21,7 @@ class DayDetailModal extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionListProvider);
+    final categories = ref.watch(categoriesProvider);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -85,9 +88,13 @@ class DayDetailModal extends ConsumerWidget {
               }
 
               // Calculate Breakdown
-              final Map<String, double> breakdown = {};
+              final Map<CategoryModel, double> breakdown = {};
               for (var t in todaysExpenses) {
-                breakdown[t.category] = (breakdown[t.category] ?? 0.0) + t.amount;
+                final category = categories.firstWhere(
+                  (c) => c.id == t.categoryId,
+                  orElse: () => CategoryModel(id: 6, name: 'Other', icon: '📦', color: '0xFF9E9E9E', isDefault: true),
+                );
+                breakdown[category] = (breakdown[category] ?? 0.0) + t.amount;
               }
 
               return ConstrainedBox(
@@ -103,7 +110,13 @@ class DayDetailModal extends ConsumerWidget {
                     const SizedBox(height: 24),
                     const Text('Transactions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 12),
-                    ...todaysExpenses.map((t) => _buildTransactionRow(t)),
+                    ...todaysExpenses.map((t) {
+                      final category = categories.firstWhere(
+                        (c) => c.id == t.categoryId,
+                        orElse: () => CategoryModel(id: 6, name: 'Other', icon: '📦', color: '0xFF9E9E9E', isDefault: true),
+                      );
+                      return _buildTransactionRow(t, category);
+                    }),
                   ],
                 ),
               );
@@ -117,7 +130,7 @@ class DayDetailModal extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryRow(String category, double amount) {
+  Widget _buildCategoryRow(CategoryModel category, double amount) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -125,9 +138,9 @@ class DayDetailModal extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(_getIconForCategory(category), size: 16, color: Colors.grey.shade600),
+              Text(category.icon, style: const TextStyle(fontSize: 16)),
               const SizedBox(width: 8),
-              Text(category, style: const TextStyle(fontSize: 14)),
+              Text(category.name, style: const TextStyle(fontSize: 14)),
             ],
           ),
           Text('₹${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -136,28 +149,16 @@ class DayDetailModal extends ConsumerWidget {
     );
   }
 
-  Widget _buildTransactionRow(TransactionModel t) {
+  Widget _buildTransactionRow(TransactionModel t, CategoryModel category) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
         backgroundColor: Colors.grey.shade100,
-        child: Icon(_getIconForCategory(t.category), color: Colors.grey.shade700, size: 18),
+        child: Text(category.icon, style: const TextStyle(fontSize: 18)),
       ),
       title: Text(t.merchant, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(DateFormat('hh:mm a').format(t.timestamp), style: const TextStyle(fontSize: 12)),
       trailing: Text('₹${t.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
     );
-  }
-
-  IconData _getIconForCategory(String category) {
-    switch (category) {
-      case 'Food': return Icons.fastfood;
-      case 'Petrol': return Icons.local_gas_station;
-      case 'Travel': return Icons.flight_takeoff;
-      case 'Entertainment': return Icons.movie;
-      case 'Maintenance': return Icons.home_repair_service;
-      case 'Other': return Icons.category;
-      default: return Icons.help_outline;
-    }
   }
 }

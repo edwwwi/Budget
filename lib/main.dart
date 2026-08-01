@@ -5,7 +5,6 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'core/theme.dart';
 import 'features/home/main_page.dart';
-import 'features/splash/video_splash_screen.dart';
 import 'core/services/notification_service.dart';
 import 'background/sms_listener_service.dart';
 import 'core/constants.dart';
@@ -85,7 +84,11 @@ class _BudifyAppState extends ConsumerState<BudifyApp> {
       if (data == 'refresh') {
         ref.read(transactionListProvider.notifier).refresh();
       } else if (data == 'show_today_summary') {
-        ref.read(timeFilterProvider.notifier).state = TimeFilter.today;
+        final now = DateTime.now();
+        ref.read(dateRangeProvider.notifier).state = DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
       }
     });
@@ -120,7 +123,7 @@ class _BudifyAppState extends ConsumerState<BudifyApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const VideoSplashScreen(),
+      home: const MainPage(),
       debugShowCheckedModeBanner: false,
     );
   }

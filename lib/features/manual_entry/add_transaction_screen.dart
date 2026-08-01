@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/categories_provider.dart';
 import '../../core/constants.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _noteController = TextEditingController();
 
   String _type = 'DEBIT';
-  String _category = 'Uncategorized';
+  int _categoryId = 6; // Default to 'Other' if not selected, assuming 6 is Other. We'll set it dynamically if needed.
   DateTime _selectedDate = DateTime.now();
 
   @override
@@ -54,8 +55,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         merchant: merchant,
         timestamp: _selectedDate,
         type: _type,
-        category: _category,
-        isCategorized: _category != 'Uncategorized',
+        categoryId: _categoryId,
+        isCategorized: _categoryId != 6,
         smsBody: '',
         note: _noteController.text,
         source: 'MANUAL',
@@ -139,27 +140,21 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               const SizedBox(height: 16),
 
               // Category Dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _category,
+              DropdownButtonFormField<int>(
+                value: _categoryId,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
-                items: [
-                  'Uncategorized',
-                  'Food',
-                  'Petrol',
-                  'Entertainment',
-                  'Other'
-                ]
-                    .map((label) => DropdownMenuItem(
-                          value: label,
-                          child: Text(label),
+                items: ref.watch(categoriesProvider)
+                    .map((cat) => DropdownMenuItem(
+                          value: cat.id,
+                          child: Text('${cat.icon} ${cat.name}'),
                         ))
                     .toList(),
                 onChanged: (value) {
                   setState(() {
-                    _category = value!;
+                    _categoryId = value!;
                   });
                 },
               ),

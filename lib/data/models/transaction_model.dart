@@ -4,7 +4,7 @@ class TransactionModel {
   final String merchant;
   final DateTime timestamp;
   final String type; // 'CREDIT' or 'DEBIT'
-  final String category;
+  final int categoryId;
   final bool isCategorized;
   final String smsBody;
   final String? accountNumber;
@@ -22,7 +22,7 @@ class TransactionModel {
     required this.merchant,
     required this.timestamp,
     required this.type,
-    this.category = 'Uncategorized',
+    required this.categoryId,
     this.isCategorized = false,
     required this.smsBody,
     this.accountNumber,
@@ -43,7 +43,7 @@ class TransactionModel {
       'merchant': merchant,
       'timestamp': timestamp.toIso8601String(),
       'type': type,
-      'category': category,
+      'category_id': categoryId,
       'is_categorized': isCategorized ? 1 : 0,
       'sms_body': smsBody,
       'account_number': accountNumber,
@@ -64,7 +64,7 @@ class TransactionModel {
       merchant: map['merchant'],
       timestamp: DateTime.parse(map['timestamp']),
       type: map['type'],
-      category: map['category'],
+      categoryId: map['category_id'] ?? 6, // Default to 'Other' ID if null
       isCategorized: map['is_categorized'] == 1,
       smsBody: map['sms_body'],
       accountNumber: map['account_number'],
@@ -84,7 +84,7 @@ class TransactionModel {
     String? merchant,
     DateTime? timestamp,
     String? type,
-    String? category,
+    int? categoryId,
     bool? isCategorized,
     String? smsBody,
     String? accountNumber,
@@ -102,7 +102,7 @@ class TransactionModel {
       merchant: merchant ?? this.merchant,
       timestamp: timestamp ?? this.timestamp,
       type: type ?? this.type,
-      category: category ?? this.category,
+      categoryId: categoryId ?? this.categoryId,
       isCategorized: isCategorized ?? this.isCategorized,
       smsBody: smsBody ?? this.smsBody,
       accountNumber: accountNumber ?? this.accountNumber,

@@ -93,24 +93,24 @@ class SmsParser {
     }
 
     // Smart Auto-Categorization
-    String category = 'Uncategorized';
+    int categoryId = 6; // Default to Other
     bool isCategorized = false;
     final lowerMerchant = merchant.toLowerCase();
 
     if (lowerMerchant.contains('swiggy') || lowerMerchant.contains('zomato')) {
-      category = 'Food';
+      categoryId = 1; // Food
       isCategorized = true;
     } else if (lowerMerchant.contains('indian oil') || lowerMerchant.contains('hpcl') || lowerMerchant.contains('petrol')) {
-      category = 'Petrol';
+      categoryId = 2; // Petrol
       isCategorized = true;
     } else if (lowerMerchant.contains('bookmyshow') || lowerMerchant.contains('movie')) {
-      category = 'Entertainment';
+      categoryId = 4; // Entertainment
       isCategorized = true;
     } else if (lowerMerchant.contains('irctc') || lowerMerchant.contains('uber') || lowerMerchant.contains('ola') || lowerMerchant.contains('ticket')) {
-      category = 'Travel';
+      categoryId = 3; // Travel
       isCategorized = true;
     } else if (lowerMerchant.contains('electricity') || lowerMerchant.contains('asianet') || lowerMerchant.contains('jio fiber') || lowerMerchant.contains('rent') || lowerMerchant.contains('broadband') || lowerMerchant.contains('water bill')) {
-      category = 'Maintenance';
+      categoryId = 5; // Maintenance
       isCategorized = true;
     }
 
@@ -130,7 +130,7 @@ class SmsParser {
       merchant: merchant,
       timestamp: DateTime.now(),
       type: type,
-      category: category,
+      categoryId: categoryId,
       isCategorized: isCategorized,
       smsBody: body,
       accountNumber: accountNumber,

@@ -16,8 +16,8 @@ class TransactionRepository {
     return await _databaseHelper.insertTransaction(transaction);
   }
 
-  Future<List<TransactionModel>> getAllTransactions() async {
-    return await _databaseHelper.getTransactions();
+  Future<List<TransactionModel>> getAllTransactions({DateTime? startDate, DateTime? endDate}) async {
+    return await _databaseHelper.getTransactions(startDate: startDate, endDate: endDate);
   }
 
   Future<List<TransactionModel>> getUncategorized() async {

@@ -23,11 +23,11 @@ class ExpenseHeatmap extends ConsumerWidget {
   }
 
   Widget _buildHeatmap(BuildContext context, WidgetRef ref, Map<int, double> aggregates) {
-    final customDate = ref.watch(customDateProvider);
-    final filter = ref.watch(timeFilterProvider);
-    final targetDate = (filter == TimeFilter.customDate && customDate != null) 
-        ? customDate 
-        : DateTime.now();
+    final dateRange = ref.watch(dateRangeProvider);
+    final targetDate = dateRange.start; // using the start of range as reference for month display
+    
+    // Total spent in this month (or selected range)
+    final double totalSpent = aggregates.values.fold(0.0, (a, b) => a + b);
         
     final firstDayOfMonth = DateTime(targetDate.year, targetDate.month, 1);
     final daysInMonth = DateTime(targetDate.year, targetDate.month + 1, 0).day;
@@ -53,72 +53,44 @@ class ExpenseHeatmap extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () async {
-              final DateTime? picked = await showModalBottomSheet<DateTime>(
-                context: context,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                builder: (BuildContext context) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Select Month (${targetDate.year})',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: 12,
-                            itemBuilder: (context, index) {
-                              final month = index + 1;
-                              final date = DateTime(targetDate.year, month, 1);
-                              final isSelected = month == targetDate.month;
-                              return ListTile(
-                                title: Text(
-                                  DateFormat('MMMM').format(date),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? AppColors.primary : null,
-                                  ),
-                                ),
-                                onTap: () => Navigator.pop(context, date),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+          // Header Row: Total Spent (Top Left) | Month Year (Top Right)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Spent',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
                     ),
-                  );
-                },
-              );
-              if (picked != null) {
-                ref.read(customDateProvider.notifier).state = picked;
-                ref.read(timeFilterProvider.notifier).state = TimeFilter.customDate;
-              }
-            },
-            child: Row(
-              children: [
-                Text(
-                  DateFormat('MMMM yyyy').format(targetDate),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark,
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${AppStrings.currency}${totalSpent.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                DateFormat('MMMM yyyy').format(targetDate),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark,
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textDark),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           // Day Headers
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -144,7 +116,7 @@ class ExpenseHeatmap extends ConsumerWidget {
 
               final day = index - paddingDays + 1;
               final amount = aggregates[day] ?? 0.0;
-              final color = _getColorForAmount(context, amount);
+              final color = _getColorForAmount(context, amount, aggregates);
 
               return GestureDetector(
                 onTap: () {
@@ -176,7 +148,7 @@ class ExpenseHeatmap extends ConsumerWidget {
                             fontWeight: FontWeight.bold,
                             color: amount == 0 
                                 ? Colors.grey.shade600 
-                                : (amount < 400 ? Colors.black87 : Colors.white),
+                                : (amount < 200 ? Colors.black87 : Colors.white),
                           ),
                         ),
                         if (amount > 0)
@@ -189,7 +161,7 @@ class ExpenseHeatmap extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 8,
                                   fontWeight: FontWeight.bold,
-                                  color: amount < 400 ? Colors.black87 : Colors.white,
+                                  color: amount < 200 ? Colors.black87 : Colors.white,
                                 ),
                               ),
                             ),
@@ -206,16 +178,25 @@ class ExpenseHeatmap extends ConsumerWidget {
     );
   }
 
-  Color _getColorForAmount(BuildContext context, double amount) {
+  Color _getColorForAmount(BuildContext context, double amount, Map<int, double> aggregates) {
     if (amount == 0) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
-      return isDark ? Colors.grey.shade800 : Colors.grey.shade100;
+      return isDark ? Colors.grey.shade800 : Colors.grey.shade200; // Grey
     }
-    if (amount < 200) return Colors.red.shade200; // Very Light Red
-    if (amount < 400) return Colors.red.shade400; // Light Red
-    if (amount < 600) return Colors.red.shade600; // Medium Red
-    if (amount < 800) return Colors.red.shade800; // Dark Red
-    return Colors.red.shade900; // Very Dark Red
+    
+    // Dynamic intensity based on highest expense
+    double maxAmount = 1000.0; // fallback
+    if (aggregates.isNotEmpty) {
+      maxAmount = aggregates.values.reduce((a, b) => a > b ? a : b);
+      if (maxAmount == 0) maxAmount = 1000.0;
+    }
+
+    final ratio = amount / maxAmount;
+
+    if (ratio <= 0.25) return Colors.red.shade200; // Low Expense (Light Red)
+    if (ratio <= 0.50) return Colors.red.shade400; // Medium Expense (Medium Red)
+    if (ratio <= 0.75) return Colors.red.shade700; // High Expense (Dark Red)
+    return Colors.red.shade900; // Highest Expense (Very Dark Red)
   }
 }
 

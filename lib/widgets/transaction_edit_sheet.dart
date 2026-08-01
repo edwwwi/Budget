@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../data/models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/categories_provider.dart';
 import '../core/constants.dart';
 
 class TransactionEditSheet extends ConsumerStatefulWidget {
@@ -15,7 +16,7 @@ class TransactionEditSheet extends ConsumerStatefulWidget {
 }
 
 class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
-  late String _selectedCategory;
+  late int _selectedCategoryId;
   late TextEditingController _merchantController;
   late TextEditingController _amountController;
   late DateTime _selectedDate;
@@ -23,9 +24,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = widget.transaction.category == AppStrings.uncategorized
-        ? 'Other'
-        : widget.transaction.category;
+    _selectedCategoryId = widget.transaction.categoryId;
     _merchantController =
         TextEditingController(text: widget.transaction.merchant);
     _amountController =
@@ -56,6 +55,8 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+
     return Container(
       padding: EdgeInsets.only(
         left: 24,
@@ -135,21 +136,21 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: AppStrings.categories.map((category) {
-                final isSelected = _selectedCategory == category;
+              children: categories.map((category) {
+                final isSelected = _selectedCategoryId == category.id;
                 return FilterChip(
-                  label: Text(category),
+                  label: Text('${category.icon} ${category.name}'),
                   selected: isSelected,
                   onSelected: (selected) {
                     setState(() {
-                      _selectedCategory = category;
+                      _selectedCategoryId = category.id!;
                     });
                   },
                   backgroundColor: Colors.grey[100],
-                  selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                  checkmarkColor: AppColors.primary,
+                  selectedColor: Color(int.parse(category.color)).withValues(alpha: 0.15),
+                  checkmarkColor: Color(int.parse(category.color)),
                   labelStyle: TextStyle(
-                    color: isSelected ? AppColors.primary : AppColors.textDark,
+                    color: isSelected ? Color(int.parse(category.color)) : AppColors.textDark,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 );
@@ -172,7 +173,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   final updatedTransaction = widget.transaction.copyWith(
                     amount: amount,
                     merchant: _merchantController.text.isEmpty ? 'Unknown' : _merchantController.text,
-                    category: _selectedCategory,
+                    categoryId: _selectedCategoryId,
                     timestamp: _selectedDate,
                     isCategorized: true,
                   );

@@ -43,14 +43,20 @@ Future<void> executeDailySummary() async {
       return;
     }
 
+    final categories = await dbHelper.getCategories();
+    final Map<int, String> categoryNames = {
+      for (var c in categories) c.id!: '${c.icon} ${c.name}'
+    };
+
     double totalCategorizedAmount = 0;
     Map<String, double> categoryTotals = {};
     int uncategorizedCount = 0;
 
     for (var t in todaysTransactions) {
-      if (t.isCategorized && t.category != 'Uncategorized') {
+      if (t.isCategorized && t.categoryId != 6) { // 6 is default 'Other' or uncategorized in this context? Let's just say if isCategorized.
+        final catName = categoryNames[t.categoryId] ?? 'Unknown';
         totalCategorizedAmount += t.amount;
-        categoryTotals[t.category] = (categoryTotals[t.category] ?? 0) + t.amount;
+        categoryTotals[catName] = (categoryTotals[catName] ?? 0) + t.amount;
       } else {
         uncategorizedCount++;
       }

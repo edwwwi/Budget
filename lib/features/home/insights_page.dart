@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/categories_provider.dart';
+import '../../data/models/category_model.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../history/history_page.dart';
@@ -9,12 +12,13 @@ import '../../widgets/expense_heatmap.dart';
 
 class InsightsPage extends ConsumerWidget {
   const InsightsPage({super.key});
-////Insights Page
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final breakdownAsync = ref.watch(categoryBreakdownProvider);
     final totalExpenseAsync = ref.watch(totalExpenseProvider);
     final uncategorizedAsync = ref.watch(uncategorizedTransactionsProvider);
+    final categories = ref.watch(categoriesProvider);
     final isDarkMode = ref.watch(themeProvider) == ThemeMode.dark;
     final textColor = isDarkMode ? Colors.white : AppColors.textDark;
     final cardColor = isDarkMode ? const Color(0xFF1E1E1E) : AppColors.cardBackground;
@@ -97,8 +101,8 @@ class InsightsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Filter Chips
-              _buildFilterChips(context, ref, cardColor, textColor),
+              // Date Range Picker
+              _buildDateRangePicker(context, ref, cardColor, textColor),
               const SizedBox(height: 24),
 
               Text('Category Breakdown',
@@ -133,13 +137,13 @@ class InsightsPage extends ConsumerWidget {
                           ],
                         ),
                         child: SizedBox(
-                          height: 198, // Reduced by 10% from 220
+                          height: 198,
                           child: PieChart(
                             key: ValueKey(data.length),
                             PieChartData(
                               sectionsSpace: 2,
-                              centerSpaceRadius: 45, // Reduced by 10% from 50
-                              sections: _generateSections(data, totalExpense),
+                              centerSpaceRadius: 45,
+                              sections: _generateSections(data, totalExpense, categories),
                             ),
                             swapAnimationDuration: Duration.zero,
                           ),
@@ -149,7 +153,12 @@ class InsightsPage extends ConsumerWidget {
                       // Breakdown List
                       ...data.entries.map((entry) {
                         final percentage = (entry.value / totalExpense * 100);
-                        final color = _getColorForCategory(entry.key);
+                        final category = categories.firstWhere(
+                          (c) => c.name == entry.key,
+                          orElse: () => CategoryModel(id: 6, name: entry.key, icon: '📦', color: '0xFF9E9E9E')
+                        );
+                        final color = Color(int.parse(category.color));
+
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(16),
@@ -169,10 +178,7 @@ class InsightsPage extends ConsumerWidget {
                               CircleAvatar(
                                 backgroundColor: color.withOpacity(0.15),
                                 radius: 24,
-                                child: Icon(
-                                  _getIconDataForCategory(entry.key),
-                                  color: color,
-                                ),
+                                child: Text(category.icon, style: const TextStyle(fontSize: 20)),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -325,79 +331,67 @@ class InsightsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildFilterChips(BuildContext context, WidgetRef ref, Color cardColor, Color textColor) {
-    final currentFilter = ref.watch(timeFilterProvider);
+  Widget _buildDateRangePicker(BuildContext context, WidgetRef ref, Color cardColor, Color textColor) {
+    final currentRange = ref.watch(dateRangeProvider);
+    final formatter = DateFormat('dd MMM yyyy');
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: TimeFilter.values.map((filter) {
-          final isSelected = currentFilter == filter;
-          String label = '';
-          switch (filter) {
-            case TimeFilter.today:
-              label = 'Today';
-              break;
-            case TimeFilter.thisWeek:
-              label = 'This Week';
-              break;
-            case TimeFilter.thisMonth:
-              label = 'This Month';
-              break;
-            case TimeFilter.customDate:
-              label = 'Custom Date';
-              break;
-            case TimeFilter.allTime:
-              label = 'All Time';
-              break;
-          }
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: ChoiceChip(
-              label: Text(label,
+    return GestureDetector(
+      onTap: () async {
+        final DateTimeRange? picked = await showDateRangePicker(
+          context: context,
+          initialDateRange: currentRange,
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now(),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: AppColors.primary,
+                  onPrimary: Colors.white,
+                  onSurface: AppColors.textDark,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          ref.read(dateRangeProvider.notifier).state = picked;
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              spreadRadius: 1,
+            )
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.calendar_month, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Text(
+                  '${formatter.format(currentRange.start)} - ${formatter.format(currentRange.end)}',
                   style: TextStyle(
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.white : textColor)),
-              selected: isSelected,
-              onSelected: (_) async {
-                  if (filter == TimeFilter.customDate) {
-                    final DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: ref.read(customDateProvider) ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(
-                              primary: AppColors.primary, // header background color
-                              onPrimary: Colors.white, // header text color
-                              onSurface: AppColors.textDark, // body text color
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (picked != null) {
-                      ref.read(customDateProvider.notifier).state = picked;
-                      ref.read(timeFilterProvider.notifier).state = filter;
-                    }
-                  } else {
-                    ref.read(timeFilterProvider.notifier).state = filter;
-                  }
-              },
-              backgroundColor: cardColor,
-              selectedColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: const BorderSide(color: Colors.transparent)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
             ),
-          );
-        }).toList(),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
@@ -504,63 +498,32 @@ class InsightsPage extends ConsumerWidget {
   }
 
   List<PieChartSectionData> _generateSections(
-      Map<String, double> data, double total) {
+      Map<String, double> data, double total, List<CategoryModel> categories) {
     return data.entries.map((entry) {
-      final color = _getColorForCategory(entry.key);
+      final category = categories.firstWhere(
+        (c) => c.name == entry.key,
+        orElse: () => CategoryModel(id: 6, name: entry.key, icon: '📦', color: '0xFF9E9E9E')
+      );
+      final color = Color(int.parse(category.color));
 
       return PieChartSectionData(
         color: color,
         value: entry.value,
         title: '',
-        radius: 36, // Reduced by 10% from 40
+        radius: 36,
         badgeWidget: _Badge(
-          _getIconDataForCategory(entry.key),
-          size: 28, // Reduced slightly
+          category.icon,
+          size: 28,
           color: color,
         ),
         badgePositionPercentageOffset: 1.1,
       );
     }).toList();
   }
-
-  Color _getColorForCategory(String category) {
-    switch (category) {
-      case 'Food':
-        return AppColors.food;
-      case 'Petrol':
-        return AppColors.petrol;
-      case 'Travel':
-        return AppColors.travel;
-      case 'Entertainment':
-        return AppColors.entertainment;
-      case 'Other':
-        return AppColors.other;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getIconDataForCategory(String category) {
-    switch (category) {
-      case 'Food':
-        return Icons.fastfood;
-      case 'Petrol':
-        return Icons.local_gas_station;
-      case 'Travel':
-        return Icons.flight_takeoff;
-      case 'Entertainment':
-        return Icons.movie;
-      case 'Other':
-        return Icons.category;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
 }
 
 class _Badge extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final double size;
   final Color color;
 
@@ -582,12 +545,12 @@ class _Badge extends StatelessWidget {
         ],
       ),
       child: Center(
-        child: Icon(
+        child: Text(
           icon,
-          color: Colors.white,
-          size: size * 0.6,
+          style: TextStyle(fontSize: size * 0.5),
         ),
       ),
     );
   }
 }
+

@@ -5,38 +5,25 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/categories_provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/transaction_model.dart';
+import '../../data/models/category_model.dart';
 import '../../widgets/transaction_edit_sheet.dart';
+import '../settings/settings_screen.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
-<<<<<<< HEAD
   final String initialFilter;
   const HistoryPage({super.key, this.initialFilter = 'All'});
 
-=======
-  const HistoryPage({super.key});
-///////////////////
->>>>>>> dbd2135837207a9d3652b9918bf50a401d25b0f5
   @override
   ConsumerState<HistoryPage> createState() => _HistoryPageState();
 }
-////////////////////
+
 class _HistoryPageState extends ConsumerState<HistoryPage>
     with WidgetsBindingObserver {
   String _searchQuery = '';
   late String _selectedFilter;
-
-  final List<String> _filters = [
-    'All',
-    'Categorized',
-    'Uncategorized',
-    'Food',
-    'Petrol',
-    'Travel',
-    'Entertainment',
-    'Other'
-  ];
 
   @override
   void initState() {
@@ -58,7 +45,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
     }
   }
 
-  Future<void> _exportTransactions(List<TransactionModel> transactions) async {
+  Future<void> _exportTransactions(List<TransactionModel> transactions, List<CategoryModel> categories) async {
     try {
       if (transactions.isEmpty) {
         if (!context.mounted) return;
@@ -72,22 +59,19 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
       csvBuffer.writeln('Date,Amount,Merchant,Type,Category,Note');
 
       for (var t in transactions) {
+        final category = categories.firstWhere((c) => c.id == t.categoryId, orElse: () => CategoryModel(id: 6, name: 'Other', icon: '📦', color: '0xFF9E9E9E')).name;
         final date = DateFormat('yyyy-MM-dd HH:mm:ss').format(t.timestamp);
         final amount = t.amount.toStringAsFixed(2);
         final merchant = t.merchant.replaceAll('"', '""');
         final type = t.type;
-        final category = t.category.replaceAll('"', '""');
         final note = (t.note ?? '').replaceAll('"', '""');
 
-        csvBuffer.writeln(
-            '"$date","$amount","$merchant","$type","$category","$note"');
+        csvBuffer.writeln('"$date","$amount","$merchant","$type","$category","$note"');
       }
 
       final directory = await getTemporaryDirectory();
-      final String timestampStr =
-          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final String filePath =
-          '${directory.path}/transactions_$timestampStr.csv';
+      final String timestampStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final String filePath = '${directory.path}/transactions_$timestampStr.csv';
       final File file = File(filePath);
 
       await file.writeAsString(csvBuffer.toString());
@@ -103,27 +87,24 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
     }
   }
 
-  List<TransactionModel> _applyFiltersAndSearch(List<TransactionModel> list) {
-    // Note: Budify is now an Expense tracker, but we'll show all in history just in case,
-    // or maybe only DEBIT? For history, users might want to see all sms parsed.
-    // We will show DEBIT by default, or all? Let's show all, since history is comprehensive.
+  List<TransactionModel> _applyFiltersAndSearch(List<TransactionModel> list, List<CategoryModel> categories) {
     return list.where((t) {
-      // Filter logic
+      final category = categories.firstWhere((c) => c.id == t.categoryId, orElse: () => CategoryModel(id: 6, name: 'Other', icon: '📦', color: '0xFF9E9E9E'));
+      
       bool matchesFilter = true;
       if (_selectedFilter == 'Categorized') {
         matchesFilter = t.isCategorized;
       } else if (_selectedFilter == 'Uncategorized') {
         matchesFilter = !t.isCategorized;
       } else if (_selectedFilter != 'All') {
-        matchesFilter = t.category == _selectedFilter;
+        matchesFilter = category.name == _selectedFilter;
       }
 
-      // Search logic
       bool matchesSearch = true;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         matchesSearch = t.merchant.toLowerCase().contains(query) ||
-            t.category.toLowerCase().contains(query) ||
+            category.name.toLowerCase().contains(query) ||
             t.amount.toString().contains(query);
       }
 
@@ -134,6 +115,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionListProvider);
+    final categories = ref.watch(categoriesProvider);
+
+    final List<String> filters = ['All', 'Categorized', 'Uncategorized'];
+    filters.addAll(categories.map((c) => c.name));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -147,15 +132,24 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
             data: (transactions) => IconButton(
               icon: const Icon(Icons.download, color: AppColors.textDark),
               tooltip: 'Export to CSV',
-              onPressed: () => _exportTransactions(transactions),
+              onPressed: () => _exportTransactions(transactions, categories),
             ),
             orElse: () => const SizedBox.shrink(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: AppColors.textDark),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
@@ -179,15 +173,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
           ),
           const SizedBox(height: 12),
 
-          // Filter Chips
           SizedBox(
             height: 40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _filters.length,
+              itemCount: filters.length,
               itemBuilder: (context, index) {
-                final filter = _filters[index];
+                final filter = filters[index];
                 final isSelected = _selectedFilter == filter;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -217,7 +210,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
           ),
           const SizedBox(height: 8),
 
-          // Transaction List
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -225,7 +217,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage>
               },
               child: transactionsAsync.when(
                 data: (allTransactions) {
-                  final filtered = _applyFiltersAndSearch(allTransactions);
+                  final filtered = _applyFiltersAndSearch(allTransactions, categories);
 
                   if (filtered.isEmpty) {
                     return ListView(
@@ -318,10 +310,16 @@ class _TransactionTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider);
+    final category = categories.firstWhere(
+      (c) => c.id == transaction.categoryId,
+      orElse: () => CategoryModel(id: 6, name: 'Other', icon: '📦', color: '0xFF9E9E9E')
+    );
+    
     final bool isDebit = transaction.type == 'DEBIT';
     final Color amountColor = isDebit ? AppColors.textDark : AppColors.secondary;
     final bool isUncategorized = !transaction.isCategorized;
-    final Color categoryColor = _getColorForCategory(transaction.category, isUncategorized);
+    final Color categoryColor = Color(int.parse(category.color));
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -349,8 +347,12 @@ class _TransactionTile extends ConsumerWidget {
             color: categoryColor.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: Icon(_getIconForCategory(transaction.category, isUncategorized),
-              color: categoryColor),
+          child: Center(
+            child: Text(
+              isUncategorized ? '❓' : category.icon,
+              style: const TextStyle(fontSize: 24),
+            ),
+          ),
         ),
         title: Text(transaction.merchant,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
@@ -369,7 +371,7 @@ class _TransactionTile extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isUncategorized ? 'Uncategorized' : transaction.category,
+                    isUncategorized ? 'Uncategorized' : category.name,
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: categoryColor),
                   ),
                 ),
@@ -397,45 +399,5 @@ class _TransactionTile extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  Color _getColorForCategory(String category, bool isUncategorized) {
-    if (isUncategorized) return Colors.amber;
-    switch (category) {
-      case 'Food':
-        return Colors.orange;
-      case 'Petrol':
-        return Colors.blue;
-      case 'Travel':
-        return Colors.green;
-      case 'Entertainment':
-        return Colors.purple;
-      case 'Maintenance':
-        return Colors.teal;
-      case 'Other':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getIconForCategory(String category, bool isUncategorized) {
-    if (isUncategorized) return Icons.help_outline;
-    switch (category) {
-      case 'Food':
-        return Icons.fastfood;
-      case 'Petrol':
-        return Icons.local_gas_station;
-      case 'Travel':
-        return Icons.flight_takeoff;
-      case 'Entertainment':
-        return Icons.movie;
-      case 'Maintenance':
-        return Icons.home_repair_service;
-      case 'Other':
-        return Icons.category;
-      default:
-        return Icons.help_outline;
-    }
   }
 }
