@@ -359,7 +359,7 @@ class InsightsPage extends ConsumerWidget {
               context: context,
               initialDateRange: customRange ?? ref.read(dateRangeProvider),
               firstDate: DateTime(2000),
-              lastDate: DateTime.now(),
+              lastDate: DateTime(2050),
               builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(

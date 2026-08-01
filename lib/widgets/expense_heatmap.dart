@@ -157,7 +157,7 @@ class ExpenseHeatmap extends ConsumerWidget {
 
               final day = index - paddingDays + 1;
               final amount = aggregates[day] ?? 0.0;
-              final color = _getColorForAmount(context, amount, aggregates);
+              final color = _getColorForAmount(context, amount);
 
               return GestureDetector(
                 onTap: () {
@@ -189,7 +189,7 @@ class ExpenseHeatmap extends ConsumerWidget {
                             fontWeight: FontWeight.bold,
                             color: amount == 0 
                                 ? Colors.grey.shade600 
-                                : (amount < 200 ? Colors.black87 : Colors.white),
+                                : (amount <= 150 ? Colors.black87 : Colors.white),
                           ),
                         ),
                         if (amount > 0)
@@ -202,7 +202,7 @@ class ExpenseHeatmap extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 8,
                                   fontWeight: FontWeight.bold,
-                                  color: amount < 200 ? Colors.black87 : Colors.white,
+                                  color: amount <= 150 ? Colors.black87 : Colors.white,
                                 ),
                               ),
                             ),
@@ -214,30 +214,60 @@ class ExpenseHeatmap extends ConsumerWidget {
               );
             },
           ),
+          const SizedBox(height: 16),
+          _buildLegend(context),
         ],
       ),
     );
   }
 
-  Color _getColorForAmount(BuildContext context, double amount, Map<int, double> aggregates) {
+  Color _getColorForAmount(BuildContext context, double amount) {
     if (amount == 0) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       return isDark ? Colors.grey.shade800 : Colors.grey.shade200; // Grey
     }
     
-    // Dynamic intensity based on highest expense
-    double maxAmount = 1000.0; // fallback
-    if (aggregates.isNotEmpty) {
-      maxAmount = aggregates.values.reduce((a, b) => a > b ? a : b);
-      if (maxAmount == 0) maxAmount = 1000.0;
-    }
+    if (amount <= 50) return Colors.red.shade100; // 0 - 50: light light red
+    if (amount <= 100) return Colors.red.shade200;
+    if (amount <= 150) return Colors.red.shade300;
+    if (amount <= 300) return Colors.red.shade400;
+    if (amount <= 500) return Colors.red.shade500;
+    if (amount <= 750) return Colors.red.shade600;
+    if (amount <= 1000) return Colors.red.shade700;
+    if (amount <= 1500) return Colors.red.shade800;
+    return Colors.red.shade900; // 1500+: dark dark red
+  }
 
-    final ratio = amount / maxAmount;
+  Widget _buildLegend(BuildContext context) {
+    final List<Map<String, dynamic>> legendItems = [
+      {'color': _getColorForAmount(context, 0), 'label': '0'},
+      {'color': Colors.red.shade100, 'label': '50'},
+      {'color': Colors.red.shade300, 'label': '150'},
+      {'color': Colors.red.shade500, 'label': '500'},
+      {'color': Colors.red.shade700, 'label': '1k'},
+      {'color': Colors.red.shade900, 'label': '1.5k+'},
+    ];
 
-    if (ratio <= 0.25) return Colors.red.shade200; // Low Expense (Light Red)
-    if (ratio <= 0.50) return Colors.red.shade400; // Medium Expense (Medium Red)
-    if (ratio <= 0.75) return Colors.red.shade700; // High Expense (Dark Red)
-    return Colors.red.shade900; // Highest Expense (Very Dark Red)
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('Less', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(width: 8),
+        ...legendItems.map((item) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: item['color'] as Color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }),
+        const SizedBox(width: 8),
+        const Text('More', style: TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
   }
 }
 
