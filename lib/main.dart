@@ -46,7 +46,7 @@ void _scheduleDailySummary() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+////////////////////////////////////
   // Initialize Services
   await NotificationService().init();
   SmsListenerService().init();

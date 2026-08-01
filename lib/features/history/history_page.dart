@@ -10,13 +10,18 @@ import '../../data/models/transaction_model.dart';
 import '../../widgets/transaction_edit_sheet.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
+<<<<<<< HEAD
   final String initialFilter;
   const HistoryPage({super.key, this.initialFilter = 'All'});
 
+=======
+  const HistoryPage({super.key});
+///////////////////
+>>>>>>> dbd2135837207a9d3652b9918bf50a401d25b0f5
   @override
   ConsumerState<HistoryPage> createState() => _HistoryPageState();
 }
-
+////////////////////
 class _HistoryPageState extends ConsumerState<HistoryPage>
     with WidgetsBindingObserver {
   String _searchQuery = '';
