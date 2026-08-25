@@ -19,7 +19,7 @@ class HistoryPage extends ConsumerStatefulWidget {
   @override
   ConsumerState<HistoryPage> createState() => _HistoryPageState();
 }
-
+// To view the past transactions
 class _HistoryPageState extends ConsumerState<HistoryPage>
     with WidgetsBindingObserver {
   String _searchQuery = '';
