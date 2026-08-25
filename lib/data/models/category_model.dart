@@ -4,7 +4,7 @@ class CategoryModel {
   final String icon;
   final String color;
   final bool isDefault;
-  final bool isFavorite; // Added for the Top 3 feature
+  final bool isFavorite; // Added for the Top 3 feature for notification selection
   final DateTime createdAt;
   final DateTime updatedAt;
 
