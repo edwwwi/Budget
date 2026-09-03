@@ -44,6 +44,7 @@ Unlike traditional budget apps that require manual entry, Budify:
 
 ###  Insights & Analytics Dashboard
 
+-   Categorised Classification
 -   Donut Chart (fl_chart)
 -   Day / Month / Year filtering
 -   Income vs Expense comparison
